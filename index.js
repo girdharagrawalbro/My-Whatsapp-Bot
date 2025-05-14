@@ -1,201 +1,277 @@
-require('dotenv').config()
-const express = require('express')
-const mongoose = require('mongoose')
-const axios = require('axios')
-const bodyParser = require('body-parser')
-const cors = require('cors')
-const { GoogleGenerativeAI } = require('@google/generative-ai')
-const fs = require('fs')
-const path = require('path')
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const { MessagingResponse } = require('twilio').twiml;
+const twilioClient = require('twilio')(
+  process.env.TWILIO_ACCOUNT_SID, 
+  process.env.TWILIO_AUTH_TOKEN
+);
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
-const app = express()
-app.use(bodyParser.json())
-app.use(cors())
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false })); // Twilio sends form data
+app.use(bodyParser.json());
+app.use(cors());
 
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB error:', err))
+  .catch(err => console.error('MongoDB error:', err));
 
 // User Schema
 const UserSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   name: String,
   lastInteraction: { type: Date, default: Date.now }
-})
+});
 
-const User = mongoose.model('User', UserSchema)
+const User = mongoose.model('User', UserSchema);
 
 // Message Schema
 const MessageSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   text: String,
   aiReply: String,
-  timestamp: { type: Date, default: Date.now }
-})
+  timestamp: { type: Date, default: Date.now },
+  status: {
+    type: String,
+    enum: ['replied', 'failed'],
+    default: ''
+  }
+});
 
-const Message = mongoose.model('Message', MessageSchema)
+const Message = mongoose.model('Message', MessageSchema);
+
+// Scheduled Message Schema
+const ScheduledMessageSchema = new mongoose.Schema({
+  message: String,
+  users: [{ type: String }], // Array of phone numbers
+  scheduledTime: Date,
+  status: {
+    type: String,
+    enum: ['scheduled', 'sent', 'failed'],
+    default: 'scheduled'
+  },
+  timestamp: { type: Date, default: Date.now },
+  results: [{
+    phone: String,
+    status: String,
+    error: String
+  }]
+});
+
+const ScheduledMessage = mongoose.model('ScheduledMessage', ScheduledMessageSchema);
 
 // CSV logger
-function logToCSV (phone, message, aiReply) {
-  const csvFilePath = path.join(__dirname, 'contacts.csv')
-  const timestamp = new Date().toISOString()
-  const row = `"${timestamp}","${phone}","${message.replace(
-    /"/g,
-    '""'
-  )}","${aiReply}"\n`
+function logToCSV(phone, message, aiReply) {
+  const csvFilePath = path.join(__dirname, 'contacts.csv');
+  const timestamp = new Date().toISOString();
+  const row = `"${timestamp}","${phone}","${message.replace(/"/g, '""')}","${aiReply.replace(/"/g, '""')}"\n`;
+  const header = '"Timestamp","Phone Number","Message","Reply"\n';
 
-  const fileExists = fs.existsSync(csvFilePath)
-  const header = `"Timestamp","Phone Number","Message", "Reply"\n`
-
-  if (!fileExists) {
-    fs.writeFileSync(csvFilePath, header + row)
-    console.log('📄 CSV created and first row written')
+  if (!fs.existsSync(csvFilePath)) {
+    fs.writeFileSync(csvFilePath, header + row);
+    console.log('📄 CSV created and first row written');
   } else {
-    fs.appendFileSync(csvFilePath, row)
-    console.log(`✅ Data added to CSV: ${phone} - ${message}`)
+    fs.appendFileSync(csvFilePath, row);
+    console.log(`✅ Data added to CSV: ${phone}`);
   }
 }
 
 // Gemini AI setup
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function getGeminiReply (chatHistory, newMessage) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+async function getGeminiReply(chatHistory, newMessage) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   let prompt = `
 Tum ek political aur social leader ke WhatsApp assistant ho.
 Neeche diye gaye pehle ke conversation ko samajhkar, naye message ka samajhdari se Hinglish mein jawab do.
 
 Chat history:
-`
+`;
 
-  chatHistory.forEach((msg, index) => {
-    prompt += `User: ${msg.text}\nBot: ${msg.aiReply || '(no reply)'}\n`
-  })
+  chatHistory.forEach((msg) => {
+    prompt += `User: ${msg.text}\nBot: ${msg.aiReply || '(no reply)'}\n`;
+  });
 
-  prompt += `\nNew message: "${newMessage}"\nReply:`
+  prompt += `\nNew message: "${newMessage}"\nReply:`;
 
   try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
-    return text.replace(/\*\*/g, '').trim()
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    return text.replace(/\*\*/g, '').trim();
   } catch (err) {
-    console.error('Gemini Error:', err.message)
-    return 'Kuch error aaya AI mein, please thodi der baad try karo.'
+    console.error('Gemini Error:', err.message);
+    return 'Kuch error aaya AI mein, please thodi der baad try karo.';
   }
 }
 
-// WhatsApp webhook
+// WhatsApp webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const msg = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
-  const from = msg?.from
-  const text = msg?.text?.body
+  const from = req.body.WaId || req.body.From;
+  const text = req.body.Body;
+  
+  console.log('📩 Message received from:', from);
+  console.log('📝 Message text:', text);
 
-  console.log('📩 Message received from:', from)
-  console.log('📝 Message text:', text)
+  const twiml = new MessagingResponse();
 
-  if (from && text) {
-    try {
-      // Get or create user
-      let user = await User.findOne({ phone: from })
-      if (!user) {
-        user = await User.create({ phone: from })
-      } else {
-        user.lastInteraction = new Date()
-        await user.save()
-      }
+  if (!from || !text) {
+    return res.type('text/xml').send(twiml.toString());
+  }
 
-      // Fetch last 5 messages from this user
-      const pastMessages = await Message.find({ user: user._id })
-        .sort({ timestamp: -1 })
-        .limit(5)
-        .lean()
-        .then(docs => docs.reverse()) // maintain oldest to newest
+  try {
+    // Normalize phone number (remove non-digit characters)
+    const normalizedPhone = from.replace(/\D/g, '');
+    
+    let user = await User.findOneAndUpdate(
+      { phone: normalizedPhone },
+      { $set: { lastInteraction: new Date() } },
+      { upsert: true, new: true }
+    );
 
-      let aiReply = ''
+    const newMsg = await Message.create({
+      user: user._id,
+      text,
+      status: 'failed'
+    });
 
-      // Predefined reply
-      if (
-        text.toLowerCase().includes('address') ||
-        text.toLowerCase().includes('location')
-      ) {
-        aiReply = 'Hamare office yaha hai: 123 Main Road, Raipur, Chhattisgarh.'
-      } else if (
-        text.toLowerCase().includes('phone') ||
-        text.toLowerCase().includes('contact')
-      ) {
-        aiReply =
-          'Aap parshad ji se is number par sampark kar sakte hain: 9876543210.'
-      } else if (
-        text.toLowerCase().includes('event') ||
-        text.toLowerCase().includes('program')
-      ) {
-        aiReply =
-          'Agle samajik karyakram ki jankari ke liye kripya Facebook ya website par check karein.'
-      } else {
-        aiReply = await getGeminiReply(pastMessages, text)
-      }
+    const pastMessages = await Message.find({ user: user._id })
+      .sort({ timestamp: -1 })
+      .limit(5)
+      .lean();
 
-      // Send reply to user via WhatsApp
-      await axios.post(
-        `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to: from,
-          text: { body: aiReply }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+    let aiReply = '';
 
-      console.log('✅ Reply sent to user.')
-
-      // Save to DB
-      await Message.create({
-        user: user._id,
-        text,
-        aiReply
-      })
-
-      logToCSV(from, text, aiReply)
-    } catch (error) {
-      console.error('❌ Error in processing message:', error.message)
+    if (text.toLowerCase().includes('address') || text.toLowerCase().includes('location')) {
+      aiReply = 'Hamare office yaha hai: 123 Main Road, Raipur, Chhattisgarh.';
+    } else if (text.toLowerCase().includes('phone') || text.toLowerCase().includes('contact')) {
+      aiReply = 'Aap parshad ji se is number par sampark kar sakte hain: 9876543210.';
+    } else if (text.toLowerCase().includes('event') || text.toLowerCase().includes('program')) {
+      aiReply = 'Agle samajik karyakram ki jankari ke liye kripya Facebook ya website par check karein.';
+    } else {
+      aiReply = await getGeminiReply(pastMessages.reverse(), text);
     }
+
+    twiml.message(aiReply);
+
+    await Message.findByIdAndUpdate(newMsg._id, {
+      aiReply,
+      status: 'replied'
+    });
+
+    logToCSV(normalizedPhone, text, aiReply);
+  } catch (error) {
+    console.error('❌ Error in processing message:', error);
+    twiml.message('Kuch error aaya, please thodi der baad try karo.');
   }
 
-  res.sendStatus(200)
-})
-
-// Webhook verification
-app.get('/webhook', (req, res) => {
-  const verify_token = 'my_custom_token'
-  const mode = req.query['hub.mode']
-  const token = req.query['hub.verify_token']
-  const challenge = req.query['hub.challenge']
-
-  if (mode === 'subscribe' && token === verify_token) {
-    console.log('✅ Webhook verified.')
-    res.status(200).send(challenge)
-  } else {
-    res.sendStatus(403)
-  }
-})
+  res.type('text/xml').send(twiml.toString());
+});
 
 // API to get message history
 app.get('/api/messages', async (req, res) => {
-  const messages = await Message.find()
-    .populate('user', 'phone')
-    .sort({ timestamp: -1 })
-  res.json(messages)
-})
+  try {
+    const messages = await Message.find()
+      .populate('user', 'phone name')
+      .sort({ timestamp: -1 })
+      .limit(100);
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
 
-app.listen(process.env.PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${process.env.PORT}`)
-})
+// API to get scheduled messages
+app.get('/api/scheduled-messages', async (req, res) => {
+  try {
+    const messages = await ScheduledMessage.find().sort({ scheduledTime: -1 });
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching scheduled messages:', error);
+    res.status(500).json({ error: 'Failed to fetch scheduled messages' });
+  }
+});
+
+// API to send scheduled messages
+app.post('/api/messages/send', async (req, res) => {
+  const { message, users, scheduledTime } = req.body;
+
+  if (!message || !users || !Array.isArray(users)) {
+    return res.status(400).json({ error: 'Invalid request body' });
+  }
+
+  try {
+    const scheduledMessage = new ScheduledMessage({
+      message,
+      users,
+      scheduledTime: scheduledTime || new Date(),
+      status: 'scheduled'
+    });
+
+    await scheduledMessage.save();
+
+    const sendMessages = async () => {
+      const results = [];
+      let allSuccessful = true;
+
+      for (const phone of users) {
+        try {
+          await twilioClient.messages.create({
+            body: message,
+            from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+            to: `whatsapp:${phone}`
+          });
+          results.push({ phone, status: 'sent' });
+          console.log(`✅ Message sent to ${phone}`);
+        } catch (err) {
+          console.error(`❌ Error sending to ${phone}:`, err.message);
+          results.push({ phone, status: 'failed', error: err.message });
+          allSuccessful = false;
+        }
+      }
+
+      await ScheduledMessage.findByIdAndUpdate(scheduledMessage._id, {
+        status: allSuccessful ? 'sent' : 'failed',
+        results,
+        completedAt: new Date()
+      });
+    };
+
+    if (scheduledTime && new Date(scheduledTime) > new Date()) {
+      const delay = new Date(scheduledTime) - Date.now();
+      setTimeout(sendMessages, delay);
+      return res.json({ 
+        status: 'scheduled', 
+        scheduledAt: scheduledTime,
+        messageId: scheduledMessage._id 
+      });
+    }
+
+    await sendMessages();
+    const updated = await ScheduledMessage.findById(scheduledMessage._id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error scheduling messages:', error);
+    res.status(500).json({ error: 'Failed to schedule messages' });
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
