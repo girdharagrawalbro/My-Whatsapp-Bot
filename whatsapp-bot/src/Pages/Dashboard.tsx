@@ -1,7 +1,7 @@
 import StatsCard from '../components/StatsCard'
 import { useState, useEffect } from 'react'
 
-// Define the Message interface
+// Define the Message and User interfaces
 interface Message {
   _id: string
   user: {
@@ -13,8 +13,19 @@ interface Message {
   status: 'pending' | 'replied' | 'error'
 }
 
+interface User {
+  phone: string
+  name?: string
+  lastInteraction: string
+}
+
+interface ScheduledMessage {
+  _id: string
+  text: string
+  timestamp: string
+}
+
 export default function Dashboard () {
-  // Add type definition for stats
   interface StatItem {
     title: string
     value: string
@@ -28,62 +39,77 @@ export default function Dashboard () {
   const [failedMessages, setFailedMessages] = useState<number>(0)
   const [yesterdaysMessagesCount, setYesterdaysMessagesCount] = useState(0)
   const [yesterdaysUserCount, setYesterdaysUserCount] = useState(0)
+  const [scheduledToday, setScheduledToday] = useState<ScheduledMessage[]>([])
+  const [users, setUsers] = useState<User[]>([])
 
   useEffect(() => {
-    const fetchMessages = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/messages')
-        const data: Message[] = await response.json()
+        const [messageRes, userRes, scheduledRes] = await Promise.all([
+          fetch('http://localhost:3000/api/messages'),
+          fetch('http://localhost:3000/api/users'),
+          fetch('http://localhost:3000/api/scheduled-messages')
+        ])
+
+        const messageData: Message[] = await messageRes.json()
+        const userData: User[] = await userRes.json()
+        const scheduledData: ScheduledMessage[] = await scheduledRes.json()
+
         const today = new Date()
         const todayStr = today.toISOString().split('T')[0]
 
-        const yesterday = new Date() // Create a new Date instance
+        const yesterday = new Date()
         yesterday.setDate(today.getDate() - 1)
         const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-        const filteredMessages = data.filter(message => {
-          const messageDate = new Date(message.timestamp)
-            .toISOString()
-            .split('T')[0]
+        const filteredMessages = messageData.filter(message => {
+          const messageDate = new Date(message.timestamp).toISOString().split('T')[0]
           return messageDate === todayStr
         })
 
-        const oldMessages = data.filter(message => {
-          const messageDate = new Date(message.timestamp)
-            .toISOString()
-            .split('T')[0]
+        const oldMessages = messageData.filter(message => {
+          const messageDate = new Date(message.timestamp).toISOString().split('T')[0]
           return messageDate < todayStr
         })
-        setTodaysMessages(filteredMessages)
 
-        // Get unique users
-        const allUsers = new Set(data.map(message => message.user.phone))
         const todaysUsers = new Set(
           filteredMessages.map(message => message.user.phone)
         )
+
         const yesterdaysUsers = new Set(
-          oldMessages.map(message => message.user.phone)
-        )
-        const yesterdaysmessages = data.filter(
-          (message: Message) => message.timestamp.split('T')[0] === yesterdayStr
+          oldMessages
+            .filter(msg => msg.timestamp.split('T')[0] === yesterdayStr)
+            .map(message => message.user.phone)
         )
 
         const failedToday = filteredMessages.filter(
-          message => message.status === 'error' || 'pending'
+          message => message.status === 'error' || message.status === 'pending'
         )
 
-        setTotalUsers(allUsers.size)
+        const scheduledTodayMsgs = scheduledData.filter(msg => {
+          return msg.timestamp.split('T')[0] === todayStr
+        })
+
+        setTodaysMessages(filteredMessages)
+        setTotalUsers(userData.length)
         setNewUsersToday(todaysUsers.size)
         setFailedMessages(failedToday.length)
-        setYesterdaysMessagesCount(yesterdaysmessages.length)
+        setYesterdaysMessagesCount(
+          messageData.filter(
+            msg => msg.timestamp.split('T')[0] === yesterdayStr
+          ).length
+        )
         setYesterdaysUserCount(yesterdaysUsers.size)
+        setScheduledToday(scheduledTodayMsgs)
+        setUsers(userData)
       } catch (error) {
-        console.error('Failed to fetch messages', error)
+        console.error('Failed to fetch dashboard data', error)
       }
     }
 
-    fetchMessages()
+    fetchData()
   }, [])
+
   const calcChange = (today: number, yesterday: number) => {
     if (yesterday === 0) return '100%'
     return `${(((today - yesterday) / yesterday) * 100).toFixed(1)}%`
@@ -149,19 +175,25 @@ export default function Dashboard () {
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6'>
           <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4'>
             <h2 className='text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-0'>
-              Recent Activity
+              Scheduled Messages Today
             </h2>
-            <button className='text-xs sm:text-sm text-indigo-600 hover:text-indigo-800'>
-              View All
-            </button>
           </div>
-          {/* Activity timeline would go here */}
-          <div className='text-center py-4 sm:py-8 text-gray-500 text-sm'>
-            Activity timeline component would go here
-          </div>
+          {scheduledToday.length > 0 ? (
+            <ul className='text-sm text-gray-700 list-disc list-inside'>
+              {scheduledToday.map((msg, i) => (
+                <li key={msg._id}>
+                  {new Date(msg.timestamp).toLocaleTimeString()} — {msg.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className='text-center text-gray-500 text-sm py-4'>
+              No scheduled messages for today.
+            </div>
+          )}
         </div>
 
-        {/* Today's Messages in Table Format */}
+        {/* Today's Messages Table */}
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6'>
           <h2 className='text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4'>
             Today's Messages
@@ -183,7 +215,6 @@ export default function Dashboard () {
                     <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Reply
                     </th>
-
                     <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Time
                     </th>
@@ -192,16 +223,13 @@ export default function Dashboard () {
                 <tbody className='bg-white divide-y divide-gray-200'>
                   {todaysMessages.map((message, index) => (
                     <tr key={message._id} className='hover:bg-gray-50'>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500'>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500'>
                         {index + 1}
                       </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4'>
                         <div className='text-xs sm:text-sm font-medium text-gray-900'>
                           {message.user.phone
-                            ? `+${message.user.phone.slice(
-                                0,
-                                2
-                              )} ${message.user.phone.slice(2)}`
+                            ? `+${message.user.phone.slice(0, 2)} ${message.user.phone.slice(2)}`
                             : ''}
                         </div>
                       </td>
@@ -210,21 +238,18 @@ export default function Dashboard () {
                       </td>
                       <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500 max-w-[100px] sm:max-w-xs truncate'>
                         {!message.aiReply?.trim() ? (
-                          <span
-                            className={`px-2 py-1 rounded-full ${
-                              message.status === 'pending'
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
+                          <span className={`px-2 py-1 rounded-full ${
+                            message.status === 'pending'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
                             {message.status}
                           </span>
                         ) : (
                           message.aiReply
                         )}
                       </td>
-
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500'>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500'>
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </td>
                     </tr>

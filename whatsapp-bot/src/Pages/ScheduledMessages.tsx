@@ -5,26 +5,53 @@ import {
   FiSearch,
   FiChevronLeft,
   FiChevronRight,
-  FiCalendar
+  FiCalendar,
+  FiEyeOff,
+  FiCheckSquare,
+  FiSquare
 } from 'react-icons/fi'
 
+interface ScheduledMessage {
+  _id: string
+  message: string
+  users: string[]
+  scheduledTime: string
+  status: 'scheduled' | 'sent' | 'failed'
+  hidden: boolean
+  campaign?: string
+  results?: {
+    phone: string
+    status: string
+    error?: string
+  }[]
+}
+
 export default function ScheduledMessages () {
-  const [scheduledMessages, setScheduledMessages] = useState<any[]>([])
+  const [scheduledMessages, setScheduledMessages] = useState<
+    ScheduledMessage[]
+  >([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [dateFilter, setDateFilter] = useState<string>('')
+  const [filters, setFilters] = useState({
+    status: 'all',
+    date: '',
+    showHidden: false
+  })
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([])
+  const [selectAll, setSelectAll] = useState(false)
   const itemsPerPage = 10
 
   // Fetch all scheduled messages from API
   useEffect(() => {
-    const fetchAllScheduledMessages = async () => {
+    const fetchScheduledMessages = async () => {
       try {
         setLoading(true)
-        const res = await fetch('http://localhost:3000/api/scheduled-messages')
+        const res = await fetch(`http://localhost:3000/api/scheduled-messages`)
         const data = await res.json()
         setScheduledMessages(data)
+        setSelectedMessages([])
+        setSelectAll(false)
       } catch (err) {
         console.error('Error fetching scheduled messages:', err)
       } finally {
@@ -32,13 +59,13 @@ export default function ScheduledMessages () {
       }
     }
 
-    fetchAllScheduledMessages()
+    fetchScheduledMessages()
   }, [])
 
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/api/scheduled-messages/')
+      const res = await fetch('http://localhost:3000/api/scheduled-messages')
       const data = await res.json()
       setScheduledMessages(data)
     } catch (err) {
@@ -49,7 +76,65 @@ export default function ScheduledMessages () {
   }
 
   const formatPhone = (phone: string) =>
-    `+${phone.slice(0, 2)} ${phone.slice(2)}`
+    phone ? `+${phone.slice(0, 2)} ${phone.slice(2)}` : ''
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedMessages([])
+    } else {
+      setSelectedMessages(currentMessages.map(msg => msg._id))
+    }
+    setSelectAll(!selectAll)
+  }
+
+  const toggleMessageSelection = (id: string) => {
+    setSelectedMessages(prev =>
+      prev.includes(id) ? prev.filter(msgId => msgId !== id) : [...prev, id]
+    )
+  }
+
+  const toggleMessageVisibility = async (ids: string[], hide: boolean) => {
+    try {
+      setLoading(true)
+      const res = await fetch(
+        'http://localhost:3000/api/scheduled-messages/visibility',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ids, hidden: hide })
+        }
+      )
+
+      if (res.ok) {
+        setScheduledMessages(
+          scheduledMessages.map(msg =>
+            ids.includes(msg._id) ? { ...msg, hidden: hide } : msg
+          )
+        )
+        setSelectedMessages([])
+        setSelectAll(false)
+      }
+    } catch (err) {
+      console.error('Error updating visibility:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const applyFilters = (newFilters: Partial<typeof filters>) => {
+    setFilters({ ...filters, ...newFilters })
+    setCurrentPage(1)
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      status: 'all',
+      date: '',
+      showHidden: false
+    })
+  }
 
   // Filter messages based on search term and filters
   const filteredMessages = scheduledMessages.filter(msg => {
@@ -57,12 +142,13 @@ export default function ScheduledMessages () {
       msg.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       msg.users?.some((user: string) => user.includes(searchTerm))
 
-    const matchesStatus = statusFilter === 'all' || msg.status === statusFilter
+    const matchesStatus =
+      filters.status === 'all' || msg.status === filters.status
 
     const matchesDate =
-      !dateFilter ||
+      !filters.date ||
       new Date(msg.scheduledTime).toDateString() ===
-        new Date(dateFilter).toDateString()
+        new Date(filters.date).toDateString()
 
     return matchesSearch && matchesStatus && matchesDate
   })
@@ -81,7 +167,7 @@ export default function ScheduledMessages () {
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <h2 className='text-xl font-semibold text-gray-800 flex items-center gap-2'>
           <FiCalendar />
-          All Scheduled Messages
+          Scheduled Messages
         </h2>
         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <div className='relative flex-1 sm:w-64'>
@@ -99,22 +185,29 @@ export default function ScheduledMessages () {
 
           <div className='flex items-center gap-2'>
             <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              value={filters.status}
+              onChange={e => applyFilters({ status: e.target.value })}
               className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
             >
               <option value='all'>All Statuses</option>
-              <option value='pending'>Pending</option>
+              <option value='scheduled'>Scheduled</option>
               <option value='sent'>Sent</option>
               <option value='failed'>Failed</option>
             </select>
 
             <input
               type='date'
-              value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
+              value={filters.date}
+              onChange={e => applyFilters({ date: e.target.value })}
               className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
             />
+
+            <button
+              onClick={clearFilters}
+              className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors'
+            >
+              Clear
+            </button>
           </div>
 
           <button
@@ -125,6 +218,26 @@ export default function ScheduledMessages () {
             <FiRefreshCw className={`${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
+
+          {selectedMessages.length > 0 && (
+            <div className='flex gap-2'>
+              <button
+                className='flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors'
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Are you sure you want to hide the selected messages?'
+                    )
+                  ) {
+                    toggleMessageVisibility(selectedMessages, true)
+                  }
+                }}
+              >
+                <FiEyeOff />
+                <span>Hide</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -144,15 +257,24 @@ export default function ScheduledMessages () {
           </div>
         ) : (
           <>
-            <div className='overflow-x-auto'>
-              <table className='min-w-full divide-y divide-gray-200'>
+            <div className='overflow-x-auto '>
+              <table className='min-w-full  divide-y divide-gray-200'>
                 <thead className='bg-gray-50'>
                   <tr>
                     <th
                       scope='col'
                       className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
                     >
-                      S.No.
+                      <div className='flex items-center'>
+                        <button onClick={toggleSelectAll} className='mr-2'>
+                          {selectAll ? (
+                            <FiCheckSquare className='text-indigo-600' />
+                          ) : (
+                            <FiSquare />
+                          )}
+                        </button>
+                        S.No.
+                      </div>
                     </th>
                     <th
                       scope='col'
@@ -178,20 +300,39 @@ export default function ScheduledMessages () {
                     >
                       Status
                     </th>
+                    <th
+                      scope='col'
+                      className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className='bg-white divide-y divide-gray-200'>
                   {currentMessages.length > 0 ? (
                     currentMessages.map((msg, index) => (
-                      <tr key={msg._id || index} className='hover:bg-gray-50'>
+                      <tr
+                        key={msg._id}
+                        className={`hover:bg-gray-50 ${
+                          msg.hidden ? 'bg-gray-100' : ''
+                        }`}
+                      >
                         <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                          {indexOfFirstItem + index + 1}
+                          <div className='flex items-center'>
+                            <input
+                              type='checkbox'
+                              checked={selectedMessages.includes(msg._id)}
+                              onChange={() => toggleMessageSelection(msg._id)}
+                              className='mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded'
+                            />
+                            {indexOfFirstItem + index + 1}
+                          </div>
                         </td>
-                        <td className='px-6 py-4 relative group'>
-                          <div className='text-sm font-medium text-gray-900'>
+                        <td className='px-6 py-4 group'>
+                          <div className='text-sm font-medium text-gray-900 truncate'>
                             {msg.users?.length <= 2 ? (
                               msg.users
-                                ?.map((user: string) => formatPhone(user))
+                                ?.map(user => formatPhone(user))
                                 .join(', ')
                             ) : (
                               <>
@@ -201,7 +342,7 @@ export default function ScheduledMessages () {
                                 <div className='absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
                                   <div className='whitespace-normal break-words'>
                                     {msg.users
-                                      ?.map((user: string) => formatPhone(user))
+                                      ?.map(user => formatPhone(user))
                                       .join(', ')}
                                   </div>
                                 </div>
@@ -211,14 +352,13 @@ export default function ScheduledMessages () {
                         </td>
                         <td className='px-6 py-4 text-sm text-gray-500 max-w-xs relative group'>
                           <div className='truncate'>{msg.message}</div>
-                          {msg.message &&
-                            msg.message.length > 50 && ( // Only show tooltip if text is long
-                              <div className='absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
-                                <div className='whitespace-normal break-words'>
-                                  {msg.message}
-                                </div>
+                          {msg.message && msg.message.length > 50 && (
+                            <div className='absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
+                              <div className='whitespace-normal break-words'>
+                                {msg.message}
                               </div>
-                            )}
+                            </div>
+                          )}
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                           {msg.scheduledTime
@@ -227,7 +367,7 @@ export default function ScheduledMessages () {
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap'>
                           <span
-                            className={`px-2 py-1 text-xs rounded-full ${
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
                               msg.status === 'sent'
                                 ? 'bg-green-100 text-green-800'
                                 : msg.status === 'scheduled'
@@ -235,15 +375,33 @@ export default function ScheduledMessages () {
                                 : 'bg-red-100 text-red-800'
                             }`}
                           >
-                            {msg.status || 'pending'}
+                            {msg.status}
                           </span>
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  'Are you sure you want to hide the selected messages?'
+                                )
+                              ) {
+                                toggleMessageVisibility([msg._id], !msg.hidden)
+                              }
+                            }}
+                            className='flex items-center gap-1 px-3 py-1 rounded-md
+                              bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          >
+                            <FiEyeOff />
+                            <span>Hide</span>
+                          </button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className='px-6 py-4 text-center text-sm text-gray-500'
                       >
                         No scheduled messages found

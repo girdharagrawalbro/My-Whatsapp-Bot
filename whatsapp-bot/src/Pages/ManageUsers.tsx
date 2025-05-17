@@ -2,15 +2,26 @@ import { useEffect, useState } from 'react'
 import {
   FiRefreshCw,
   FiSearch,
-  FiFilter,
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiX
 } from 'react-icons/fi'
+
+interface User {
+  _id: string
+  phone: string
+  name?: string
+  lastInteraction?: string
+}
 
 interface UserMessage {
   _id: string
   user: {
     phone: string
+    name?: string
   }
   text: string
   aiReply: string
@@ -19,69 +30,154 @@ interface UserMessage {
 }
 
 export default function ManageUsers () {
-  const [users, setUsers] = useState<UserMessage[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [messages, setMessages] = useState<UserMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [formData, setFormData] = useState({
+    phone: '',
+    name: ''
+  })
 
+  // Fetch data
   useEffect(() => {
-    const fetchMessages = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
-        const res = await fetch('http://localhost:3000/api/messages')
-        const data = await res.json()
 
-        // Process data to get last message per user
-        const userMap = new Map<string, UserMessage>()
+        // Fetch users
+        const usersRes = await fetch('http://localhost:3000/api/users')
+        const usersData = await usersRes.json()
+        setUsers(usersData)
 
-        data.forEach((msg: UserMessage) => {
-          const phone = msg.user.phone
-          const existingMsg = userMap.get(phone)
-
-          if (
-            !existingMsg ||
-            new Date(msg.timestamp) > new Date(existingMsg.timestamp)
-          ) {
-            userMap.set(phone, msg)
-          }
-        })
-
-        // Convert map values to array and sort by timestamp (newest first)
-        const uniqueUsers = Array.from(userMap.values()).sort(
-          (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-
-        setUsers(uniqueUsers)
+        // Fetch messages
+        const messagesRes = await fetch('http://localhost:3000/api/messages')
+        const messagesData = await messagesRes.json()
+        setMessages(messagesData)
       } catch (err) {
-        setError('Failed to load messages')
-        console.log(err)
+        setError('Failed to load data')
+        console.error(err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchMessages()
+    fetchData()
   }, [])
 
   const handleRefresh = () => {
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000)
+    fetchData().finally(() => setLoading(false))
   }
 
-  const filteredUsers = users.filter(user => {
-    const phone = user.user.phone?.toLowerCase() || ''
-    const text = user.text?.toLowerCase() || ''
-    const searchTermLower = searchTerm.toLowerCase()
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await fetch('http://localhost:3000/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData
+        })
+      })
 
-    return phone.includes(searchTermLower) || text.includes(searchTermLower)
-  })
+      if (res.ok) {
+        const newUser = await res.json()
+        setUsers([...users, newUser])
+        setShowAddForm(false)
+        resetForm()
+      }
+    } catch (err) {
+      setError('Failed to add user')
+    }
+  }
 
-  // Pagination logic
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) return
+
+    try {
+      const res = await fetch(
+        `http://localhost:3000/api/users/${currentUser._id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...formData
+          })
+        }
+      )
+
+      if (res.ok) {
+        const updatedUser = await res.json()
+        setUsers(users.map(u => (u._id === updatedUser._id ? updatedUser : u)))
+        setShowEditForm(false)
+        resetForm()
+      }
+    } catch (err) {
+      setError('Failed to update user')
+    }
+  }
+
+  const handleDeleteUser = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (res.ok) {
+          setUsers(users.filter(u => u._id !== id))
+        }
+      } catch (err) {
+        setError('Failed to delete user')
+      }
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      phone: '',
+      name: ''
+    })
+  }
+
+  const openEditForm = (user: User) => {
+    setCurrentUser(user)
+    setFormData({
+      phone: user.phone,
+      name: user.name || ''
+    })
+    setShowEditForm(true)
+  }
+
+  // Get last message for each user
+  const getUserLastMessage = (phone: string) => {
+    return messages
+      .filter(m => m.user.phone === phone)
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )[0]
+  }
+
+  // Filter and pagination logic
+  const filteredUsers = users.filter(
+    user =>
+      user.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
+
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem)
@@ -89,8 +185,129 @@ export default function ManageUsers () {
 
   return (
     <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden m-6'>
+      {/* Add User Modal */}
+      {showAddForm && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+            <div className='flex justify-between items-center mb-4'>
+              <h3 className='text-lg font-semibold'>Add New User</h3>
+              <button onClick={() => setShowAddForm(false)}>
+                <FiX className='text-gray-500' />
+              </button>
+            </div>
+            <form onSubmit={handleAddUser}>
+              <div className='space-y-4'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Phone Number*
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.phone}
+                    onChange={e =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Name
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.name}
+                    onChange={e =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className='mt-6 flex justify-end space-x-3'>
+                <button
+                  type='button'
+                  onClick={() => setShowAddForm(false)}
+                  className='px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                >
+                  Cancel
+                </button>
+                <button
+                  type='submit'
+                  className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                >
+                  Add User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditForm && currentUser && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+            <div className='flex justify-between items-center mb-4'>
+              <h3 className='text-lg font-semibold'>Edit User</h3>
+              <button onClick={() => setShowEditForm(false)}>
+                <FiX className='text-gray-500' />
+              </button>
+            </div>
+            <form onSubmit={handleEditUser}>
+              <div className='space-y-4'>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Phone Number*
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.phone}
+                    onChange={e =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Name
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.name}
+                    onChange={e =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className='mt-6 flex justify-end space-x-3'>
+                <button
+                  type='button'
+                  onClick={() => setShowEditForm(false)}
+                  className='px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                >
+                  Cancel
+                </button>
+                <button
+                  type='submit'
+                  className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                >
+                  Update User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
-        <h2 className='text-lg font-semibold text-gray-800'>User Messages</h2>
+        <h2 className='text-lg font-semibold text-gray-800'>User Management</h2>
         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <div className='relative flex-1 sm:w-64'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -98,7 +315,7 @@ export default function ManageUsers () {
             </div>
             <input
               type='text'
-              placeholder='Search users or messages...'
+              placeholder='Search users...'
               className='pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -112,9 +329,12 @@ export default function ManageUsers () {
             <FiRefreshCw className={`${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
-          <button className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'>
-            <FiFilter />
-            <span>Filter</span>
+          <button
+            className='flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors'
+            onClick={() => setShowAddForm(true)}
+          >
+            <FiPlus />
+            <span>Add User</span>
           </button>
         </div>
       </div>
@@ -140,80 +360,94 @@ export default function ManageUsers () {
             <table className='min-w-full divide-y divide-gray-200'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th
-                    scope='col'
-                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
-                  >
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     S.No.
                   </th>
-                  <th
-                    scope='col'
-                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
-                  >
-                    Phone Number
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Phone
                   </th>
-                  <th
-                    scope='col'
-                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
-                  >
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Name
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Last Message
                   </th>
-                  <th
-                    scope='col'
-                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
-                  >
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Last Interaction
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Status
                   </th>
-                  <th
-                    scope='col'
-                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'
-                  >
-                    Last Activity
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Actions
                   </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
                 {currentUsers.length > 0 ? (
-                  currentUsers.map((user, index) => (
-                    <tr key={user._id} className='hover:bg-gray-50'>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                        {indexOfFirstItem + index + 1}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div className='text-sm font-medium text-gray-900'>
-                          {user.user.phone
-                            ? `+${user.user.phone.slice(
-                                0,
-                                2
-                              )} ${user.user.phone.slice(2)}`
-                            : 'N/A'}
-                        </div>
-                      </td>
-                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                        {user.text}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            user.status === 'replied'
-                              ? 'bg-green-100 text-green-800'
-                              : user.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {user.status}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                        {new Date(user.timestamp).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
+                  currentUsers.map((user, index) => {
+                    const lastMessage = getUserLastMessage(user.phone)
+                    return (
+                      <tr key={user._id} className='hover:bg-gray-50'>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                          {indexOfFirstItem + index + 1}
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap'>
+                          <div className='text-sm font-medium text-gray-900'>
+                            {user.phone
+                              ? `+${user.phone.slice(0, 2)} ${user.phone.slice(
+                                  2
+                                )}`
+                              : 'N/A'}
+                          </div>
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                          {user.name || 'N/A'}
+                        </td>
+                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                          {lastMessage?.text || 'No messages'}
+                        </td>
+                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                          {lastMessage
+                            ? new Date(lastMessage.timestamp).toLocaleString()
+                            : ''}
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap'>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              lastMessage?.status === 'replied'
+                                ? 'bg-green-100 text-green-800'
+                                : lastMessage?.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {lastMessage?.status || 'N/A'}
+                          </span>
+                        </td>
+                        <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                          <div className='flex space-x-2'>
+                            <button
+                              onClick={() => openEditForm(user)}
+                              className='text-indigo-600 hover:text-indigo-900'
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user._id)}
+                              className='text-red-600 hover:text-red-900'
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className='px-6 py-4 text-center text-sm text-gray-500'
                     >
                       No users found

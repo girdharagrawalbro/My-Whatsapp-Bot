@@ -154,3 +154,25 @@
 //   console.log(`🚀 Server running on http://localhost:${process.env.PORT}`)
 // })
 
+
+
+
+// CSV logger
+
+// function logToCSV(phone, message, aiReply) {
+//   const csvFilePath = path.join(__dirname, 'contacts.csv')
+//   const timestamp = new Date().toISOString()
+//   const row = `"${timestamp}","${phone}","${message.replace(
+//     /"/g,
+//     '""'
+//   )}","${aiReply.replace(/"/g, '""')}"\n`
+//   const header = '"Timestamp","Phone Number","Message","Reply"\n'
+
+//   if (!fs.existsSync(csvFilePath)) {
+//     fs.writeFileSync(csvFilePath, header + row)
+//     console.log('📄 CSV created and first row written')
+//   } else {
+//     fs.appendFileSync(csvFilePath, row)
+//     console.log(`✅ Data added to CSV: ${phone}`)
+//   }
+// }
