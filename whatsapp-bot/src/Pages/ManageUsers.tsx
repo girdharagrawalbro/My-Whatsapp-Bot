@@ -52,12 +52,16 @@ export default function ManageUsers () {
         setLoading(true)
 
         // Fetch users
-        const usersRes = await fetch('http://localhost:3000/api/users')
+        const usersRes = await fetch(
+          'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
+        )
         const usersData = await usersRes.json()
         setUsers(usersData)
 
         // Fetch messages
-        const messagesRes = await fetch('http://localhost:3000/api/messages')
+        const messagesRes = await fetch(
+          'https://my-whatsapp-bot-6a9u.onrender.com/api/messages'
+        )
         const messagesData = await messagesRes.json()
         setMessages(messagesData)
       } catch (err) {
@@ -71,23 +75,46 @@ export default function ManageUsers () {
     fetchData()
   }, [])
 
-  const handleRefresh = () => {
-    setLoading(true)
-    fetchData().finally(() => setLoading(false))
+  const handleRefresh = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch users
+      const usersRes = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
+      )
+      const usersData = await usersRes.json()
+      setUsers(usersData)
+
+      // Fetch messages
+      const messagesRes = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages'
+      )
+      const messagesData = await messagesRes.json()
+      setMessages(messagesData)
+    } catch (err) {
+      setError('Failed to load data')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch('http://localhost:3000/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...formData
-        })
-      })
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/users',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...formData
+          })
+        }
+      )
 
       if (res.ok) {
         const newUser = await res.json()
@@ -106,7 +133,7 @@ export default function ManageUsers () {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/api/users/${currentUser._id}`,
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${currentUser._id}`,
         {
           method: 'PUT',
           headers: {
@@ -132,9 +159,12 @@ export default function ManageUsers () {
   const handleDeleteUser = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/users/${id}`, {
-          method: 'DELETE'
-        })
+        const res = await fetch(
+          `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${id}`,
+          {
+            method: 'DELETE'
+          }
+        )
 
         if (res.ok) {
           setUsers(users.filter(u => u._id !== id))

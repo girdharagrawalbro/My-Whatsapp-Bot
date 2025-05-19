@@ -1,4 +1,6 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import toast from 'react-hot-toast'
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -28,7 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('password', password);
       }
     } else {
-      alert('Invalid credentials');
+      toast.error('Invalid credentials');
     }
   };
 

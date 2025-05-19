@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import toast from 'react-hot-toast';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -31,7 +32,7 @@ const Settings = () => {
     e.preventDefault();
     // Save settings to the backend
     console.log('Settings saved:', settings);
-    alert('Settings saved successfully!');
+    toast.success('Settings saved successfully!');
   };
 
   const handleLogout = () => {
@@ -43,7 +44,7 @@ const Settings = () => {
     if (isEditingName) {
       setSettings({ ...settings, name: tempName });
     }
-    setIsEditingName(!isEditingName);
+setIsEditingName(!isEditingName);
   };
 
   return (

@@ -14,6 +14,12 @@ import {
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import toast from 'react-hot-toast'
 
+interface MessageData {
+  user: {
+    phone: string;
+  };
+}
+
 export default function SpeechGenerator () {
   const [text, setText] = useState('')
   const [generatedSpeech, setGeneratedSpeech] = useState('')
@@ -75,9 +81,11 @@ export default function SpeechGenerator () {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/messages')
-        const data = await res.json()
-        const phoneSet = new Set(data.map((da: any) => da.user.phone))
+        const res = await fetch(
+          'https://my-whatsapp-bot-6a9u.onrender.com/api/messages'
+        )
+        const data = await res.json() as MessageData[]
+        const phoneSet = new Set(data.map(da => da.user.phone))
         setUsers(Array.from(phoneSet))
       } catch (err) {
         console.error('Error fetching users:', err)
@@ -175,14 +183,17 @@ export default function SpeechGenerator () {
 
     try {
       // In a real app, you would call your WhatsApp API here
-      const res = await fetch('http://localhost:3000/api/send-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: generatedSpeech,
-          users: selectedUsers
-        })
-      })
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/send-message',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: generatedSpeech,
+            users: selectedUsers
+          })
+        }
+      )
 
       if (!res.ok) throw new Error('Failed to send message')
 

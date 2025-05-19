@@ -4,7 +4,6 @@ import {
   FiSearch,
   FiChevronLeft,
   FiChevronRight,
-  FiEye,
   FiEyeOff,
   FiCheckSquare,
   FiSquare
@@ -41,7 +40,9 @@ export default function Messages () {
     const fetchMessages = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`http://localhost:3000/api/messages`)
+        const res = await fetch(
+          `https://my-whatsapp-bot-6a9u.onrender.com/api/messages`
+        )
         const data = await res.json()
         setMessages(data)
         setSelectedMessages([])
@@ -60,7 +61,9 @@ export default function Messages () {
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`http://localhost:3000/api/messages`)
+      const res = await fetch(
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/messages`
+      )
       const data = await res.json()
       setMessages(data)
       setSelectedMessages([])
@@ -90,13 +93,16 @@ export default function Messages () {
   const toggleMessageVisibility = async (ids: string[], hide: boolean) => {
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/api/messages/visibility', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ids, hidden: hide })
-      })
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages/visibility',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ids, hidden: hide })
+        }
+      )
 
       if (res.ok) {
         // Update local state
@@ -153,7 +159,7 @@ export default function Messages () {
   const totalPages = Math.ceil(filteredMessages.length / itemsPerPage)
 
   return (
-    <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden m-6 z-10'>
+    <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden my-6 mx-4 z-10'>
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <h2 className='text-lg font-semibold text-gray-800'>Message History</h2>
         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
@@ -317,7 +323,7 @@ export default function Messages () {
                             type='checkbox'
                             checked={selectedMessages.includes(msg._id)}
                             onChange={() => toggleMessageSelection(msg._id)}
-                            className='mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded'
+                            className='mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded bg-gray-200'
                           />
                           {indexOfFirstItem + index + 1}
                         </div>
@@ -343,32 +349,32 @@ export default function Messages () {
                         )}
                       </td>
                       <td className='px-4 py-4 text-sm text-gray-500 max-w-xs relative group'>
-  {!msg.aiReply?.trim() ? (
-    <span
-      className={`px-2 py-1 rounded-full ${
-        msg.status === 'pending'
-          ? 'bg-red-100 text-red-700'
-          : 'bg-orange-100 text-orange-700'
-      }`}
-    >
-      {msg.status}
-    </span>
-  ) : (
-    <>
-      {/* The whole td is now interactive */}
-      <div className='truncate'>{msg.aiReply}</div>
+                        {!msg.aiReply?.trim() ? (
+                          <span
+                            className={`px-2 py-1 rounded-full ${
+                              msg.status === 'pending'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-orange-100 text-orange-700'
+                            }`}
+                          >
+                            {msg.status}
+                          </span>
+                        ) : (
+                          <>
+                            {/* The whole td is now interactive */}
+                            <div className='truncate'>{msg.aiReply}</div>
 
-      {/* Tooltip on hover */}
-      {msg.aiReply.length > 50 && (
-        <div className='absolute left-0 top-full mt-2 z-50 w-max max-w-md p-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-300'>
-          <div className='whitespace-normal break-words'>
-            {msg.aiReply}
-          </div>
-        </div>
-      )}
-    </>
-  )}
-</td>
+                            {/* Tooltip on hover */}
+                            {msg.aiReply.length > 50 && (
+                              <div className='absolute left-0 top-full mt-2 z-50 w-max max-w-md p-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-300'>
+                                <div className='whitespace-normal break-words'>
+                                  {msg.aiReply}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </td>
 
                       <td className='px-4 py-4 whitespace-nowrap'>
                         <span
@@ -397,9 +403,10 @@ export default function Messages () {
                               toggleMessageVisibility([msg._id], !msg.hidden)
                             }
                           }}
-                          className='flex items-center gap-1 px-3 py-1 rounded-mdbg-gray-100 text-gray-800 hover:bg-gray-200'
+                          className='flex items-center gap-1 px-3 py-1 rounded-md
+                              bg-gray-100 text-gray-800 hover:bg-gray-200'
                         >
-                          <FiEye />
+                          <FiEyeOff />
                           <span>Hide</span>
                         </button>
                       </td>

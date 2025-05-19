@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import {
   FiRefreshCw,
   FiSearch,
-  FiFilter,
   FiChevronLeft,
   FiChevronRight,
   FiCheckSquare,
@@ -27,12 +26,15 @@ interface ScheduledMessage {
   scheduledTime: string
   status: 'scheduled' | 'sent' | 'failed'
   hidden: boolean
+  campaign: string
 }
 
-export default function MessageScheduler() {
+export default function MessageScheduler () {
   const [message, setMessage] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
-  const [scheduledMessages, setScheduledMessages] = useState<ScheduledMessage[]>([])
+  const [scheduledMessages, setScheduledMessages] = useState<
+    ScheduledMessage[]
+  >([])
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -51,7 +53,9 @@ export default function MessageScheduler() {
   const fetchUsers = async () => {
     try {
       setLoading(prev => ({ ...prev, users: true }))
-      const res = await fetch(`http://localhost:3000/api/users`)
+      const res = await fetch(
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/users`
+      )
       const data = await res.json()
       setUsers(data)
     } catch (err) {
@@ -66,9 +70,11 @@ export default function MessageScheduler() {
   const fetchScheduledMessages = async () => {
     try {
       setLoading(prev => ({ ...prev, messages: true }))
-      const res = await fetch('http://localhost:3000/api/scheduled-messages')
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages'
+      )
       const data = await res.json()
-      
+
       // Filter to today's messages
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -111,7 +117,8 @@ export default function MessageScheduler() {
     }
   }
 
-  const formatPhone = (phone: string) => phone ? `+${phone.slice(0, 2)} ${phone.slice(2)}` : ''
+  const formatPhone = (phone: string) =>
+    phone ? `+${phone.slice(0, 2)} ${phone.slice(2)}` : ''
 
   const handleSend = async () => {
     if (!message || selectedUsers.length === 0) {
@@ -121,17 +128,20 @@ export default function MessageScheduler() {
 
     try {
       setLoading(prev => ({ ...prev, sending: true }))
-      const res = await fetch('http://localhost:3000/api/messages/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          users: selectedUsers,
-          scheduledTime: scheduledTime || undefined,
-          audience,
-          campaign: campaign || undefined
-        })
-      })
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages/send',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            users: selectedUsers,
+            scheduledTime: scheduledTime || undefined,
+            audience,
+            campaign: campaign || undefined
+          })
+        }
+      )
 
       if (!res.ok) throw new Error('Failed to schedule message')
 
@@ -155,83 +165,92 @@ export default function MessageScheduler() {
   }
 
   // Filter recipients based on search term
-  const filteredRecipients = users.filter(user =>
-    user.phone.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-    (user.name && user.name.toLowerCase().includes(recipientSearch.toLowerCase()))
+  const filteredRecipients = users.filter(
+    user =>
+      user.phone.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+      (user.name &&
+        user.name.toLowerCase().includes(recipientSearch.toLowerCase()))
   )
 
   // Pagination for scheduled messages
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentMessages = scheduledMessages.slice(indexOfFirstItem, indexOfLastItem)
+  const currentMessages = scheduledMessages.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  )
   const totalPages = Math.ceil(scheduledMessages.length / itemsPerPage)
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Message Composer Section */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <h2 className="text-xl font-semibold p-4 border-b border-gray-200">
+      <div className='bg-white rounded-lg border border-gray-200 shadow-sm m-6'>
+        <h2 className='text-xl font-semibold p-4 border-b border-gray-200'>
           Schedule New Message
         </h2>
 
-        <div className="p-6 space-y-4">
+        <div className='p-6 space-y-4'>
           <div>
-            <label className="block mb-2 font-medium">Message Content</label>
+            <label className='block mb-2 font-medium'>Message Content</label>
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder="Type your WhatsApp message here..."
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder='Type your WhatsApp message here...'
+              className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
               rows={4}
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             <div>
-              <label className="block mb-2 font-medium">Schedule Time (Leave empty for immediate)</label>
+              <label className='block mb-2 font-medium'>
+                Schedule Time (Leave empty for immediate)
+              </label>
               <input
-                type="datetime-local"
+                type='datetime-local'
                 value={scheduledTime}
                 onChange={e => setScheduledTime(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 min={new Date().toISOString().slice(0, 16)}
               />
             </div>
 
             <div>
-              <label className="block mb-2 font-medium">Campaign Name (Optional)</label>
+              <label className='block mb-2 font-medium'>
+                Campaign Name (Optional)
+              </label>
               <input
-                type="text"
+                type='text'
                 value={campaign}
                 onChange={e => setCampaign(e.target.value)}
-                placeholder="E.g. Election2024, FestivalGreetings"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder='E.g. Election2024, FestivalGreetings'
+                className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
               />
             </div>
           </div>
 
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block font-medium">Select Recipients</label>
-              <div className="flex items-center gap-3">
+            <div className='flex justify-between items-center mb-2'>
+              <label className='block font-medium'>Select Recipients</label>
+              <div className='flex items-center gap-3'>
                 <select
                   value={audience}
                   onChange={e => setAudience(e.target.value as any)}
-                  className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className='p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 >
-                  <option value="all">All Users</option>
-                  <option value="supporters">Supporters Only</option>
-                  <option value="new">New Users Only</option>
+                  <option value='all'>All Users</option>
+                  <option value='supporters'>Supporters Only</option>
+                  <option value='new'>New Users Only</option>
                 </select>
 
-                <div className="relative w-64">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiSearch className="text-gray-400" />
+                <div className='relative w-64'>
+                  <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                    <FiSearch className='text-gray-400' />
                   </div>
                   <input
-                    type="text"
-                    placeholder="Search recipients..."
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    type='text'
+                    placeholder='Search recipients...'
+                    className='pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                     value={recipientSearch}
                     onChange={e => setRecipientSearch(e.target.value)}
                   />
@@ -239,32 +258,34 @@ export default function MessageScheduler() {
               </div>
             </div>
 
-            <div className="mb-3">
+            <div className='mb-3'>
               <button
                 onClick={handleSelectAll}
                 disabled={filteredRecipients.length === 0}
                 className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition ${
-                  selectedUsers.length === filteredRecipients.length && filteredRecipients.length > 0
+                  selectedUsers.length === filteredRecipients.length &&
+                  filteredRecipients.length > 0
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 hover:bg-gray-200'
                 }`}
               >
                 <FiCheckSquare />
                 <span>
-                  {selectedUsers.length === filteredRecipients.length && filteredRecipients.length > 0
+                  {selectedUsers.length === filteredRecipients.length &&
+                  filteredRecipients.length > 0
                     ? 'Deselect All'
                     : 'Select All'}
                 </span>
               </button>
             </div>
 
-            <div className="border rounded-lg p-3 h-64 overflow-y-auto">
+            <div className='border rounded-lg p-3 h-64 overflow-y-auto'>
               {loading.users ? (
-                <div className="flex justify-center items-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className='flex justify-center items-center h-full'>
+                  <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'></div>
                 </div>
               ) : filteredRecipients.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2'>
                   {filteredRecipients.map(user => (
                     <div
                       key={user._id}
@@ -275,16 +296,24 @@ export default function MessageScheduler() {
                           : 'border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      <div className={`p-1 rounded-full ${
-                        selectedUsers.includes(user.phone) ? 'text-blue-500' : 'text-gray-400'
-                      }`}>
+                      <div
+                        className={`p-1 rounded-full ${
+                          selectedUsers.includes(user.phone)
+                            ? 'text-blue-500'
+                            : 'text-gray-400'
+                        }`}
+                      >
                         <FiUser />
                       </div>
                       <div>
-                        <div className="font-medium">{user.name || 'No Name'}</div>
-                        <div className="text-sm text-gray-600">{formatPhone(user.phone)}</div>
+                        <div className='font-medium'>
+                          {user.name || 'No Name'}
+                        </div>
+                        <div className='text-sm text-gray-600'>
+                          {formatPhone(user.phone)}
+                        </div>
                         {user.isSupporter && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                          <span className='text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full'>
                             Supporter
                           </span>
                         )}
@@ -293,14 +322,14 @@ export default function MessageScheduler() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <FiUsers className="text-3xl mb-2" />
+                <div className='flex flex-col items-center justify-center h-full text-gray-500'>
+                  <FiUsers className='text-3xl mb-2' />
                   <p>No recipients found</p>
                 </div>
               )}
             </div>
 
-            <div className="mt-2 text-sm text-gray-600">
+            <div className='mt-2 text-sm text-gray-600'>
               Selected: {selectedUsers.length} recipients
             </div>
           </div>
@@ -308,11 +337,11 @@ export default function MessageScheduler() {
           <button
             onClick={handleSend}
             disabled={loading.sending || !message || selectedUsers.length === 0}
-            className="w-full md:w-auto px-6 bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className='w-full md:w-auto px-6 bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
           >
             {loading.sending ? (
-              <span className="flex items-center justify-center gap-2">
-                <FiRefreshCw className="animate-spin" />
+              <span className='flex items-center justify-center gap-2'>
+                <FiRefreshCw className='animate-spin' />
                 {scheduledTime ? 'Scheduling...' : 'Sending...'}
               </span>
             ) : scheduledTime ? (
@@ -325,105 +354,111 @@ export default function MessageScheduler() {
       </div>
 
       {/* Scheduled Messages List Section */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+      <div className='bg-white rounded-lg border border-gray-200 shadow-sm mx-6'>
+        <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
+          <h2 className='text-xl font-semibold text-gray-800 flex items-center gap-2'>
             <FiCalendar />
             Today's Scheduled Messages
           </h2>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
+          <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
+            <div className='relative flex-1 sm:w-64'>
+              <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                <FiSearch className='text-gray-400' />
               </div>
               <input
-                type="text"
-                placeholder="Search messages..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                type='text'
+                placeholder='Search messages...'
+                className='pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
             <button
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
               onClick={handleRefresh}
               disabled={loading.messages}
             >
-              <FiRefreshCw className={`${loading.messages ? 'animate-spin' : ''}`} />
+              <FiRefreshCw
+                className={`${loading.messages ? 'animate-spin' : ''}`}
+              />
               <span>Refresh</span>
             </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className='overflow-x-auto'>
+          <table className='min-w-full divide-y divide-gray-200'>
+            <thead className='bg-gray-50'>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   S.No.
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Recipients
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Message
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Scheduled Time
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Campaign
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className='bg-white divide-y divide-gray-200'>
               {loading.messages ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center">
-                    <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <td colSpan={6} className='px-6 py-4 text-center'>
+                    <div className='flex justify-center'>
+                      <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'></div>
                     </div>
                   </td>
                 </tr>
               ) : currentMessages.length > 0 ? (
                 currentMessages.map((msg, index) => (
-                  <tr key={msg._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <tr key={msg._id} className='hover:bg-gray-50'>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                       {indexOfFirstItem + index + 1}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className='px-6 py-4'>
+                      <div className='text-sm font-medium text-gray-900'>
                         {msg.users.length <= 2 ? (
                           msg.users.map(user => formatPhone(user)).join(', ')
                         ) : (
-                          <div className="group relative">
-                            {`${formatPhone(msg.users[0])}, ${formatPhone(msg.users[1])} +${msg.users.length - 2} more`}
-                            <div className="absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg">
-                              {msg.users.map(user => formatPhone(user)).join(', ')}
+                          <div className='group relative'>
+                            {`${formatPhone(msg.users[0])}, ${formatPhone(
+                              msg.users[1]
+                            )} +${msg.users.length - 2} more`}
+                            <div className='absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg'>
+                              {msg.users
+                                .map(user => formatPhone(user))
+                                .join(', ')}
                             </div>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate group relative">
+                    <td className='px-6 py-4'>
+                      <div className='text-sm text-gray-900 max-w-xs truncate group relative'>
                         {msg.message}
                         {msg.message.length > 50 && (
-                          <div className="absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg">
+                          <div className='absolute z-10 invisible group-hover:visible w-64 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg'>
                             {msg.message}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                       {msg.scheduledTime
                         ? new Date(msg.scheduledTime).toLocaleString()
                         : 'Immediate'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className='px-6 py-4 whitespace-nowrap'>
                       <span
                         className={`px-2 py-1 text-xs rounded-full font-medium ${
                           msg.status === 'sent'
@@ -436,14 +471,17 @@ export default function MessageScheduler() {
                         {msg.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                       {msg.campaign || '-'}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td
+                    colSpan={6}
+                    className='px-6 py-4 text-center text-sm text-gray-500'
+                  >
                     No scheduled messages for today
                   </td>
                 </tr>
@@ -453,26 +491,30 @@ export default function MessageScheduler() {
         </div>
 
         {scheduledMessages.length > itemsPerPage && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
-              <span className="font-medium">
+          <div className='px-6 py-4 border-t border-gray-200 flex items-center justify-between'>
+            <div className='text-sm text-gray-700'>
+              Showing{' '}
+              <span className='font-medium'>{indexOfFirstItem + 1}</span> to{' '}
+              <span className='font-medium'>
                 {Math.min(indexOfLastItem, scheduledMessages.length)}
               </span>{' '}
-              of <span className="font-medium">{scheduledMessages.length}</span> messages
+              of <span className='font-medium'>{scheduledMessages.length}</span>{' '}
+              messages
             </div>
-            <div className="flex space-x-2">
+            <div className='flex space-x-2'>
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
               >
                 <FiChevronLeft />
               </button>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage(prev => Math.min(prev + 1, totalPages))
+                }
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
               >
                 <FiChevronRight />
               </button>

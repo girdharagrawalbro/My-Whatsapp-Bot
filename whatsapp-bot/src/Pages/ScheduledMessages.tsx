@@ -47,7 +47,9 @@ export default function ScheduledMessages () {
     const fetchScheduledMessages = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`http://localhost:3000/api/scheduled-messages`)
+        const res = await fetch(
+          `https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages`
+        )
         const data = await res.json()
         setScheduledMessages(data)
         setSelectedMessages([])
@@ -65,7 +67,9 @@ export default function ScheduledMessages () {
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/api/scheduled-messages')
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages'
+      )
       const data = await res.json()
       setScheduledMessages(data)
     } catch (err) {
@@ -97,7 +101,7 @@ export default function ScheduledMessages () {
     try {
       setLoading(true)
       const res = await fetch(
-        'http://localhost:3000/api/scheduled-messages/visibility',
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages/visibility',
         {
           method: 'POST',
           headers: {
@@ -163,7 +167,7 @@ export default function ScheduledMessages () {
   const totalPages = Math.ceil(filteredMessages.length / itemsPerPage)
 
   return (
-    <div className='bg-white rounded-lg border border-gray-200 shadow-sm m-6'>
+    <div className='bg-white rounded-lg border border-gray-200 shadow-sm my-6 mx-4'>
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <h2 className='text-xl font-semibold text-gray-800 flex items-center gap-2'>
           <FiCalendar />

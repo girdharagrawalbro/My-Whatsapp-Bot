@@ -51,7 +51,9 @@ export default function PartyData () {
     const fetchEmployees = async () => {
       try {
         setLoading(true)
-        const res = await fetch('http://localhost:3000/api/employees')
+        const res = await fetch(
+          'https://my-whatsapp-bot-6a9u.onrender.com/api/employees'
+        )
         const data = await res.json()
         setEmployees(data)
       } catch (err) {
@@ -68,7 +70,9 @@ export default function PartyData () {
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/api/employees')
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/employees'
+      )
       const data = await res.json()
       setEmployees(data)
     } catch (err) {
@@ -82,16 +86,19 @@ export default function PartyData () {
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch('http://localhost:3000/api/employees', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...formData,
-          permissions: formData.permissions.split(',').map(s => s.trim())
-        })
-      })
+      const res = await fetch(
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/employees',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...formData,
+            permissions: formData.permissions.split(',').map(s => s.trim())
+          })
+        }
+      )
 
       if (res.ok) {
         const newEmployee = await res.json()
@@ -110,7 +117,7 @@ export default function PartyData () {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/api/employees/${currentEmployee._id}`,
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${currentEmployee._id}`,
         {
           method: 'PUT',
           headers: {
@@ -141,9 +148,12 @@ export default function PartyData () {
   const handleDeleteEmployee = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this employee?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/employees/${id}`, {
-          method: 'DELETE'
-        })
+        const res = await fetch(
+          `https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${id}`,
+          {
+            method: 'DELETE'
+          }
+        )
 
         if (res.ok) {
           setEmployees(employees.filter(e => e._id !== id))
