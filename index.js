@@ -9,6 +9,8 @@ const twilioClient = require('twilio')(
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const { GoogleGenerativeAI } = require('@google/generative-ai')
+const tf = require('@tensorflow/tfjs');
+const { KMeans } = require('ml-kmeans')
 
 // Initialize Express app
 const app = express()
@@ -24,12 +26,19 @@ mongoose
 
 // --- SCHEMAS & MODELS ---
 /**
- * User Schema - Stores citizen information
+ * User Schema - Stores citizen information with engagement metrics
  */
 const UserSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   name: String,
-  lastInteraction: { type: Date, default: Date.now }
+  lastInteraction: { type: Date, default: Date.now },
+  engagementScore: { type: Number, default: 0 }, // 0-100 scale
+  sentimentScore: { type: Number, default: 0 }, // -1 (negative) to 1 (positive)
+  preferredLanguage: { type: String, default: 'hinglish' },
+  interests: [String], // Political topics of interest
+  messageCount: { type: Number, default: 0 },
+  responseTimes: [Number], // Array of response times in seconds
+  clusterId: { type: Number, default: -1 } // For user segmentation
 })
 
 /**
@@ -51,11 +60,16 @@ const PartySchema = new mongoose.Schema({
   leader: { type: String, required: true },
   headquarters: String,
   contact: String,
-  keyPromises: [String]
+  keyPromises: [String],
+  performanceMetrics: {
+    averageResponseTime: Number,
+    satisfactionScore: Number,
+    commonIssues: [String]
+  }
 })
 
 /**
- * Message Schema - Stores conversation history
+ * Message Schema - Stores conversation history with sentiment analysis
  */
 const MessageSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -63,7 +77,14 @@ const MessageSchema = new mongoose.Schema({
   aiReply: String,
   timestamp: { type: Date, default: Date.now },
   status: { type: String, enum: ['replied', 'failed'], default: '' },
-  hidden: { type: Boolean, default: false }
+  hidden: { type: Boolean, default: false },
+  sentiment: {
+    score: Number,
+    label: String // 'positive', 'negative', 'neutral'
+  },
+  intent: String, // Categorized intent of the message
+  responseTime: Number, // Seconds to respond
+  feedbackScore: Number // 1-5 if user provides feedback
 })
 
 /**
@@ -82,16 +103,43 @@ const ScheduledMessageSchema = new mongoose.Schema({
   campaign: String,
   audience: {
     type: String,
-    enum: ['all', 'supporters', 'new'],
+    enum: ['all', 'supporters', 'new', 'segment'],
     default: 'all'
   },
+  segmentCriteria: Object, // Criteria for segmented audiences
   results: [
     {
       phone: String,
       status: String,
-      error: String
+      error: String,
+      engagement: Number // How user engaged with this message
     }
-  ]
+  ],
+  performanceMetrics: {
+    openRate: Number,
+    responseRate: Number,
+    positiveResponseRate: Number
+  }
+})
+
+/**
+ * TrainingData Schema - Stores labeled data for ML model training
+ */
+const TrainingDataSchema = new mongoose.Schema({
+  text: String,
+  intent: String,
+  response: String,
+  sentiment: String,
+  entities: [{
+    type: String,
+    value: String
+  }],
+  source: { 
+    type: String, 
+    enum: ['manual', 'auto-labeled', 'user-feedback', 'system'], // Added 'system'
+    default: 'auto-labeled'
+  },
+  createdAt: { type: Date, default: Date.now }
 })
 
 // Create models from schemas
@@ -99,33 +147,317 @@ const User = mongoose.model('User', UserSchema)
 const Employee = mongoose.model('Employee', EmployeeSchema)
 const Party = mongoose.model('Party', PartySchema)
 const Message = mongoose.model('Message', MessageSchema)
-const ScheduledMessage = mongoose.model(
-  'ScheduledMessage',
-  ScheduledMessageSchema
-)
+const ScheduledMessage = mongoose.model('ScheduledMessage', ScheduledMessageSchema)
+const TrainingData = mongoose.model('TrainingData', TrainingDataSchema)
 
-// --- AI CONFIGURATION ---
+// --- ML & NLP CONFIGURATION ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+
+// Initialize NLP tools
+const natural = require('natural');
+const tokenizer = new natural.WordTokenizer();
+const tfidf = new natural.TfIdf();  // Correct initialization
+const stemmer = natural.PorterStemmer;
+let intentClassifier;
+let sentimentAnalyzer = {
+  getSentiment: (tokens, stemmer) => {
+    const analyzer = new natural.SentimentAnalyzer('English', stemmer, 'afinn');
+    return analyzer.getSentiment(tokens);
+  }
+};
+let userClusteringModel;
+
+// Initialize ML models
+// Add some basic training data in your initialization
+async function initializeModels() {
+  try {
+    // Add minimal training examples
+    const basicIntents = [
+      { text: "complaint about water", intent: "complaint" },
+      { text: "scheme information", intent: "scheme" },
+      { text: "thank you", intent: "thanks" }
+    ];
+
+    await TrainingData.deleteMany({});
+    await TrainingData.insertMany(basicIntents.map(data => ({
+      ...data,
+      source: 'system'
+    })));
+
+    // Now train
+    const trainingData = await TrainingData.find();
+    trainingData.forEach(data => {
+      tfidf.addDocument(tokenizer.tokenize(data.text), data.intent);
+    });
+    
+    console.log(`Intent classifier trained with ${trainingData.length} samples`);
+  } catch (err) {
+    console.error('Model initialization error:', err);
+  }
+}
+ 
+initializeModels()
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Analyzes text sentiment using a hybrid approach
+ * @param {string} text - Input text to analyze
+ * @returns {Object} {score: number, label: string}
+ */
+function analyzeSentiment(text) {
+  // Simple rule-based sentiment analysis as fallback
+  const analyzer = new natural.SentimentAnalyzer()
+  const stemmer = natural.PorterStemmer
+  const tokens = tokenizer.tokenize(text)
+  
+  try {
+    const score = analyzer.getSentiment(tokens, stemmer)
+    return {
+      score,
+      label: score > 0.2 ? 'positive' : score < -0.2 ? 'negative' : 'neutral'
+    }
+  } catch (err) {
+    console.error('Sentiment analysis error:', err)
+    return {
+      score: 0,
+      label: 'neutral'
+    }
+  }
+}
+
+/**
+ * Classifies message intent using ML model
+ * @param {string} text - Message text
+ * @returns {string} Intent category
+ */
+function classifyIntent(text) {
+  if (!tfidf.documents || tfidf.documents.length === 0) {
+    return 'general' // Fallback if model not trained
+  }
+
+  const tokens = tokenizer.tokenize(text)
+  const scores = {}
+  
+  tfidf.tfidfs(tokens, (i, measure) => {
+    const intent = tfidf.documents[i].__key
+    scores[intent] = (scores[intent] || 0) + measure
+  })
+
+  // Return intent with highest score
+  return Object.keys(scores).length > 0 
+    ? Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b)
+    : 'general'
+}
+
+/**
+ * Updates user engagement metrics
+ * @param {Object} user - User document
+ * @param {Object} message - Message document
+ */
+async function updateUserMetrics(user, message) {
+  try {
+    const updateData = {
+      $inc: { messageCount: 1 },
+      lastInteraction: new Date()
+    }
+
+    // Update sentiment rolling average
+    if (message.sentiment) {
+      const newScore = (user.sentimentScore * 0.7) + (message.sentiment.score * 0.3)
+      updateData.$set = {
+        ...updateData.$set,
+        sentimentScore: newScore
+      }
+    }
+
+    // Update engagement score (formula can be refined)
+    const responseEngagement = message.responseTime 
+      ? Math.max(0, 1 - (message.responseTime / 120)) // 2 minute max response
+      : 0.5
+    const sentimentEngagement = message.sentiment 
+      ? (message.sentiment.score + 1) / 2 // Convert -1..1 to 0..1
+      : 0.5
+    const newEngagement = (user.engagementScore * 0.6) + 
+      (responseEngagement * 0.2) + 
+      (sentimentEngagement * 0.2)
+
+    updateData.$set = {
+      ...updateData.$set,
+      engagementScore: Math.min(100, Math.max(0, newEngagement * 100)) // Convert to 0-100 scale
+    }
+
+    // Update user interests based on message intent
+    if (message.intent && !user.interests.includes(message.intent)) {
+      updateData.$push = {
+        interests: message.intent
+      }
+    }
+
+    await User.findByIdAndUpdate(user._id, updateData)
+  } catch (err) {
+    console.error('Error updating user metrics:', err)
+  }
+}
+
+/**
+ * Performs user segmentation using clustering
+ */
+async function performUserSegmentation() {
+  try {
+    const users = await User.find({
+      messageCount: { $gt: 3 } // Only segment users with sufficient interactions
+    }).select('engagementScore sentimentScore messageCount interests')
+
+    if (users.length < 10) {
+      console.log('Not enough users for segmentation')
+      return
+    }
+
+    // Prepare data for clustering
+    const data = users.map(user => [
+      user.engagementScore,
+      user.sentimentScore,
+      user.messageCount
+    ])
+
+    // Perform k-means clustering
+    const result = KMeans(data, userClusteringModel.k, { initialization: 'kmeans++' })
+    
+    // Update users with their cluster IDs
+    const bulkOps = users.map((user, index) => ({
+      updateOne: {
+        filter: { _id: user._id },
+        update: { $set: { clusterId: result.clusters[index] } }
+      }
+    }))
+
+    await User.bulkWrite(bulkOps)
+    userClusteringModel.trained = true
+    console.log(`User segmentation completed with ${userClusteringModel.k} clusters`)
+  } catch (err) {
+    console.error('Error performing user segmentation:', err)
+  }
+}
+
+// Schedule user segmentation weekly
+setInterval(performUserSegmentation, 7 * 24 * 60 * 60 * 1000)
+
+/**
+ * Generates AI response using Gemini API with context learning
+ * @param {Array} chatHistory - Previous messages in conversation
+ * @param {string} newMessage - Latest message from user
+ * @param {Object} user - User document
+ * @returns {string} Generated response
+ */
+async function getGeminiReply(chatHistory, newMessage, user) {
+  // First check for standard replies
+  const predefinedReply = getPredefinedReply(newMessage)
+  if (predefinedReply) return predefinedReply
+
+  // Prepare context for the AI
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  
+  // Create user context string
+  const userContext = `
+  User Profile:
+  - Engagement Level: ${user.engagementScore}/100
+  - Sentiment Trend: ${user.sentimentScore > 0.3 ? 'Positive' : user.sentimentScore < -0.3 ? 'Negative' : 'Neutral'}
+  - Preferred Language: ${user.preferredLanguage}
+  - Interests: ${user.interests.join(', ') || 'Not specified'}
+  - Message Count: ${user.messageCount}
+  ${user.clusterId >= 0 ? `- User Segment: Cluster ${user.clusterId}` : ''}
+  `
+
+  // Analyze current message
+  const sentiment = analyzeSentiment(newMessage)
+  const intent = classifyIntent(newMessage)
+
+  // Store this interaction as training data
+  try {
+    const trainingDoc = new TrainingData({
+      text: newMessage,
+      intent,
+      sentiment: sentiment.label,
+      source: 'auto-labeled'
+    })
+    await trainingDoc.save()
+  } catch (err) {
+    console.error('Error saving training data:', err)
+  }
+
+  // Create prompt with dynamic instructions based on user profile
+  let prompt = `
+  You are the official WhatsApp assistant for Mr. Amar Bansal (Parshad of Samta Colony). Follow these guidelines:
+
+  User Context:
+  ${userContext}
+
+  Message Analysis:
+  - Intent: ${intent}
+  - Sentiment: ${sentiment.label} (${sentiment.score.toFixed(2)})
+
+  Response Guidelines:
+  ${user.engagementScore > 70 ? '- This is a highly engaged user, provide detailed responses' : ''}
+  ${user.sentimentScore < -0.2 ? '- User has been negative recently, be extra polite and helpful' : ''}
+  ${user.preferredLanguage === 'hinglish' ? '- Respond in Hinglish (Hindi+English mix)' : '- Respond in formal Hindi'}
+  ${user.interests.includes(intent) ? `- User is interested in ${intent}, provide relevant details` : ''}
+
+  Chat History (last 5 messages):
+  ${chatHistory.slice(-5).map(m => `${m.role === 'user' ? 'User' : 'You'}: ${m.text}`).join('\n')}
+
+  New Message: "${newMessage}"
+
+  Craft a personalized response (2-3 sentences) that:
+  - Addresses the user's intent (${intent})
+  - Matches their sentiment (current: ${sentiment.label})
+  - Considers their engagement level
+  - Provides value based on their interests
+  `
+
+  try {
+    const result = await model.generateContent(prompt)
+    const response = result.response.text()
+
+    // If response is too generic, fall back to intent-based response
+    if (response.length < 20 || response.includes("I don't know")) {
+      return getIntentBasedResponse(intent, user)
+    }
+
+    return response
+  } catch (aiError) {
+    console.error('❌ Error getting AI reply:', aiError)
+    return getIntentBasedResponse(intent, user)
+  }
+}
+
+/**
+ * Gets intent-based response when AI fails or for common intents
+ * @param {string} intent - Message intent
+ * @param {Object} user - User document
+ * @returns {string} Appropriate response
+ */
+function getIntentBasedResponse(intent, user) {
+  const responses = {
+    complaint: `Hum aapki samasya ko sambhalenge. Kripya hamare office mein milne aa sakte hain ya ${process.env.OFFICE_PHONE} par call karein.`,
+    inquiry: `Aapke sawaal ka jawab hum jald de denge. Kripya thodi der intezaar karein.`,
+    greeting: `Namaste ${user.name ? 'Shri/Smt ' + user.name.split(' ')[0] : ''}! Kaise madad kar sakte hain?`,
+    thanks: `Dhanyavaad! Aapka feedback humein aur behtar kaam karne ki prerana deta hai.`,
+    general: STANDARD_REPLIES.default
+  }
+
+  return responses[intent] || responses.general
+}
 
 // Standard replies for common queries
 const STANDARD_REPLIES = {
-  address:
-    'Hamara office: Samta Colony, Raipur, Chhattisgarh. Aap kabhi bhi milne aa sakte hain!',
-  contact:
-    'Aap humein 📞 xxxxx-xxxxx par call kar sakte hain. Office hours: 10AM-5PM, Mon-Sat.',
-  scheme:
-    'Yojana ki jaankari ke liye, kripya hamari official website [URL] visit karein.',
-  default:
-    'Dhanyavaad! Aapka message hum tak pahunch gaya hai. Hum jald hi aapko reply karenge.'
+  address: 'Hamara office: Samta Colony, Raipur, Chhattisgarh. Aap kabhi bhi milne aa sakte hain!',
+  contact: `Aap humein 📞 ${process.env.OFFICE_PHONE} par call kar sakte hain. Office hours: 10AM-5PM, Mon-Sat.`,
+  scheme: 'Yojana ki jaankari ke liye, kripya hamari official website [URL] visit karein.',
+  default: 'Dhanyavaad! Aapka message hum tak pahunch gaya hai. Hum jald hi aapko reply karenge.'
 }
 
-// --- HELPER FUNCTIONS ---
-/**
- * Checks if message matches any standard queries and returns predefined reply if found
- * @param {string} message - Incoming message text
- * @returns {string|null} Predefined reply or null if no match found
- */
-function getPredefinedReply (message) {
+function getPredefinedReply(message) {
   const lowerMsg = message.toLowerCase()
   if (/address|location|kahan/i.test(lowerMsg)) return STANDARD_REPLIES.address
   if (/contact|number|phone/i.test(lowerMsg)) return STANDARD_REPLIES.contact
@@ -133,40 +465,9 @@ function getPredefinedReply (message) {
   return null
 }
 
-/**
- * Generates AI response using Gemini API
- * @param {Array} chatHistory - Previous messages in conversation
- * @param {string} newMessage - Latest message from user
- * @returns {string} Generated response
- */
-async function getGeminiReply (chatHistory, newMessage) {
-  const predefinedReply = getPredefinedReply(newMessage)
-  if (predefinedReply) return predefinedReply
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-  const prompt = `
-  You are the official WhatsApp assistant for Mr. Amar Bansal (Parshad of Samta Colony). Minimal respond in Hinglish:
-  - Be respectful but approachable
-  - For complaints, say: "Hum aapki samasya ko sambhalenge"
-  - Redirect to phone/office when needed
-
-  Chat History:
-  ${chatHistory
-    .map(m => `${m.role === 'user' ? 'User' : 'You'}: ${m.text}`)
-    .join('\n')}
-
-  New Message: "${newMessage}"
-
-  Response (2-3 sentences):
-  `
-
-  const result = await model.generateContent(prompt)
-  return result.response.text()
-}
-
 // --- ROUTES ---
 
-// WhatsApp Webhook Handler
+// WhatsApp Webhook Handler (Enhanced with ML)
 app.post('/webhook', async (req, res) => {
   const from = req.body.WaId || req.body.From
   const text = req.body.Body
@@ -180,60 +481,92 @@ app.post('/webhook', async (req, res) => {
     // Normalize phone number
     const normalizedPhone = from.replace(/\D/g, '')
 
-    // Find or create user
+    // Find or create user with enhanced metrics
     let user = await User.findOne({ phone: normalizedPhone })
     let isNewUser = false
 
     if (!user) {
       user = await User.create({
         phone: normalizedPhone,
-        lastInteraction: new Date()
+        lastInteraction: new Date(),
+        engagementScore: 50, // Default score for new users
+        sentimentScore: 0
       })
       isNewUser = true
-    } else {
-      await User.updateOne(
-        { _id: user._id },
-        { $set: { lastInteraction: new Date() } }
-      )
     }
 
-    // Store incoming message
+    // Analyze message before processing
+    const sentiment = analyzeSentiment(text)
+    const intent = classifyIntent(text)
+
+    // Store incoming message with analysis
     const newMsg = await Message.create({
       user: user._id,
       text,
-      status: 'failed'
+      status: 'failed',
+      sentiment,
+      intent,
+      timestamp: new Date()
     })
 
-    // Get conversation history
+    // Get conversation history with additional context
     const pastMessages = await Message.find({ user: user._id })
       .sort({ timestamp: -1 })
       .limit(10)
       .lean()
 
-    // Generate AI response
-    let aiReply
-    try {
-      aiReply = await getGeminiReply(pastMessages.reverse(), text)
-    } catch (aiError) {
-      console.error('❌ Error getting AI reply:', aiError)
-      aiReply = STANDARD_REPLIES.default
+    // Calculate response time (if this is a reply to previous message)
+    if (pastMessages.length > 0 && pastMessages[0].status === 'replied') {
+      const lastMessageTime = new Date(pastMessages[0].timestamp)
+      newMsg.responseTime = (new Date() - lastMessageTime) / 1000
+      await newMsg.save()
     }
 
-    // Add welcome message for new users
+    // Generate AI response with user context
+    let aiReply
+    try {
+      aiReply = await getGeminiReply(
+        pastMessages.reverse().map(m => ({
+          role: m.user ? 'user' : 'assistant',
+          text: m.user ? m.text : m.aiReply
+        })),
+        text,
+        user
+      )
+    } catch (aiError) {
+      console.error('❌ Error getting AI reply:', aiError)
+      aiReply = getIntentBasedResponse(intent, user)
+    }
+
+    // Add welcome message for new users with personalized touch
     if (isNewUser) {
-      aiReply =
-        'Namaste! Aapka swagat hai. Aapne pehli baar message kiya hai. Kaise madad kar sakte hain?\n' +
-        aiReply
+      aiReply = `Namaste! Aapka swagat hai Samta Colony ke official WhatsApp channel mein. ${aiReply}`
+      
+      // Schedule a follow-up message for new users
+      setTimeout(async () => {
+        try {
+          await twilioClient.messages.create({
+            body: 'Aapko humse koi aur madad chahiye? Humein aapki feedback ki bahut kadar hai.',
+            from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
+            to: `whatsapp:${normalizedPhone}`
+          })
+        } catch (err) {
+          console.error('Error sending follow-up:', err)
+        }
+      }, 6 * 60 * 60 * 1000) // 6 hours later
     }
 
     // Send response
     twiml.message(aiReply)
 
-    // Update message record with AI response
+    // Update message record with AI response and metrics
     await Message.findByIdAndUpdate(newMsg._id, {
       aiReply,
       status: 'replied'
     })
+
+    // Update user metrics in background
+    updateUserMetrics(user, newMsg)
   } catch (error) {
     console.error('❌ Error in processing message:', error)
     twiml.message('Kuch error aaya, please thodi der baad try karo.')
@@ -241,6 +574,127 @@ app.post('/webhook', async (req, res) => {
 
   res.type('text/xml').send(twiml.toString())
 })
+
+// --- ANALYTICS ROUTES ---
+app.get('/api/analytics/engagement', async (req, res) => {
+  try {
+    const users = await User.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgEngagement: { $avg: '$engagementScore' },
+          avgSentiment: { $avg: '$sentimentScore' },
+          totalUsers: { $sum: 1 },
+          engagedUsers: { $sum: { $cond: [{ $gt: ['$engagementScore', 70] }, 1, 0] } },
+          negativeUsers: { $sum: { $cond: [{ $lt: ['$sentimentScore', -0.3] }, 1, 0] } }
+        }
+      }
+    ])
+
+    const messages = await Message.aggregate([
+  {
+    $group: {
+      _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+      count: { $sum: 1 },
+      avgResponseTime: { $avg: '$responseTime' },
+      positive: { $sum: { $cond: [{ $gt: ['$sentiment.score', 0.3] }, 1, 0] } },
+      negative: { $sum: { $cond: [{ $lt: ['$sentiment.score', -0.3] }, 1, 0] } } // Added missing closing brace
+    }
+  },
+  { $sort: { _id: 1 } },
+  { $limit: 30 }
+])
+    const intents = await Message.aggregate([
+      { $group: { _id: '$intent', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ])
+
+    res.json({
+      userMetrics: users[0] || {},
+      messageTrends: messages,
+      commonIntents: intents
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.get('/api/analytics/user-segments', async (req, res) => {
+  try {
+    if (!userClusteringModel.trained) {
+      await performUserSegmentation()
+    }
+
+    const segments = await User.aggregate([
+      { $match: { clusterId: { $gte: 0 } } },
+      { $group: { 
+        _id: '$clusterId',
+        count: { $sum: 1 },
+        avgEngagement: { $avg: '$engagementScore' },
+        avgSentiment: { $avg: '$sentimentScore' },
+        commonInterests: { $push: '$interests' }
+      } },
+      { $sort: { _id: 1 } }
+    ])
+
+    // Process common interests for each segment
+    segments.forEach(segment => {
+      const allInterests = segment.commonInterests.flat()
+      const interestCounts = allInterests.reduce((acc, interest) => {
+        acc[interest] = (acc[interest] || 0) + 1
+        return acc
+      }, {})
+      
+      segment.topInterests = Object.entries(interestCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([interest]) => interest)
+      
+      delete segment.commonInterests
+    })
+
+    res.json(segments)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// --- TRAINING DATA MANAGEMENT ---
+app.post('/api/train', async (req, res) => {
+  try {
+    const { text, intent, response, sentiment, entities } = req.body
+
+    if (!text || !intent) {
+      return res.status(400).json({ error: 'Text and intent are required' })
+    }
+
+    const trainingDoc = new TrainingData({
+      text,
+      intent,
+      response,
+      sentiment,
+      entities,
+      source: 'manual'
+    })
+
+    await trainingDoc.save()
+
+    // Retrain the intent classifier
+    const allTrainingData = await TrainingData.find()
+    tfidf = new Tfidf() // Reset TF-IDF
+    
+    allTrainingData.forEach(data => {
+      tfidf.addDocument(tokenizer.tokenize(data.text), data.intent)
+    })
+
+    res.json({ success: true, trainedSamples: allTrainingData.length })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// --- REST OF THE ROUTES (same as before) ---
 
 // --- USER MANAGEMENT ROUTES ---
 app.get('/api/users', async (req, res) => {
@@ -288,8 +742,7 @@ app.delete('/api/users/:id', async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id)
     if (!user) return res.status(404).json({ error: 'User not found' })
-    await Message.deleteMany({ user: user._id })
-    res.status(204).send()
+    res.json({ message: 'User deleted successfully' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -468,7 +921,7 @@ app.post('/api/messages/send', async (req, res) => {
       return res.json({
         status: 'scheduled',
         scheduledAt: scheduledTime,
-        messageId: scheduledMessage._id
+          messageId: scheduledMessage._id
       })
     }
 
@@ -487,8 +940,29 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' })
 })
 
+// only for testing remove it later 
+// Add this temporary test route
+// app.get('/test-intent', async (req, res) => {
+//   const testPhrases = [
+//     "The water supply is bad",
+//     "Tell me about housing scheme",
+//     "Thanks for your help"
+//   ];
+  
+//   const results = testPhrases.map(phrase => {
+//     const intent = classifyIntent(phrase);
+//     return { phrase, intent };
+//   });
+  
+//   res.json(results);
+// });
+
+
 // Start server
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-})
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  initializeModels().then(() => {
+    performUserSegmentation();
+  });
+});
