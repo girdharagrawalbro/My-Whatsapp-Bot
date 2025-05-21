@@ -51,7 +51,7 @@ export default function EmployeeData() {
     const fetchEmployees = async () => {
       try {
         setLoading(true)  
-        const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/employees')
+        const res = await fetch('http://localhost:3000/api/employees')
         const data = await res.json()
         setEmployees(data)
       } catch (err) {
@@ -68,7 +68,7 @@ export default function EmployeeData() {
   const handleRefresh = async () => {
       try {
         setLoading(true)
-        const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/employees')
+        const res = await fetch('http://localhost:3000/api/employees')
         const data = await res.json()
         setEmployees(data)
       } catch (err) {
@@ -82,7 +82,7 @@ export default function EmployeeData() {
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/employees', {
+      const res = await fetch('http://localhost:3000/api/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -109,7 +109,7 @@ export default function EmployeeData() {
     if (!currentEmployee) return
 
     try {
-      const res = await fetch(`https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${currentEmployee._id}`, {
+      const res = await fetch(`http://localhost:3000/api/employees/${currentEmployee._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -134,7 +134,7 @@ export default function EmployeeData() {
   const handleDeleteEmployee = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this employee?')) {
       try {
-        const res = await fetch(`https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${id}`, {
+        const res = await fetch(`http://localhost:3000/api/employees/${id}`, {
           method: 'DELETE'
         })
         

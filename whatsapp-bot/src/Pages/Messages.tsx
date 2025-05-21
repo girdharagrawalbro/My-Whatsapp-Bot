@@ -41,7 +41,7 @@ export default function Messages () {
       try {
         setLoading(true)
         const res = await fetch(
-          `https://my-whatsapp-bot-6a9u.onrender.com/api/messages`
+          `http://localhost:3000/api/messages`
         )
         const data = await res.json()
         setMessages(data)
@@ -62,7 +62,7 @@ export default function Messages () {
     try {
       setLoading(true)
       const res = await fetch(
-        `https://my-whatsapp-bot-6a9u.onrender.com/api/messages`
+        `http://localhost:3000/api/messages`
       )
       const data = await res.json()
       setMessages(data)
@@ -94,7 +94,7 @@ export default function Messages () {
     try {
       setLoading(true)
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages/visibility',
+        'http://localhost:3000/api/messages/visibility',
         {
           method: 'POST',
           headers: {

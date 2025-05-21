@@ -95,9 +95,9 @@ const ScheduledMessageSchema = new mongoose.Schema({
 })
 
 // Create models from schemas
-const User = mongoose.model('User', UserSchema)
 const Employee = mongoose.model('Employee', EmployeeSchema)
 const Party = mongoose.model('Party', PartySchema)
+const User = mongoose.model('User', UserSchema)
 const Message = mongoose.model('Message', MessageSchema)
 const ScheduledMessage = mongoose.model(
   'ScheduledMessage',

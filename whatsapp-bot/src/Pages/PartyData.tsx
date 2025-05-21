@@ -52,7 +52,7 @@ export default function PartyData () {
       try {
         setLoading(true)
         const res = await fetch(
-          'https://my-whatsapp-bot-6a9u.onrender.com/api/employees'
+          'http://localhost:3000/api/employees'
         )
         const data = await res.json()
         setEmployees(data)
@@ -71,7 +71,7 @@ export default function PartyData () {
     try {
       setLoading(true)
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/employees'
+        'http://localhost:3000/api/employees'
       )
       const data = await res.json()
       setEmployees(data)
@@ -87,7 +87,7 @@ export default function PartyData () {
     e.preventDefault()
     try {
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/employees',
+        'http://localhost:3000/api/employees',
         {
           method: 'POST',
           headers: {
@@ -117,7 +117,7 @@ export default function PartyData () {
 
     try {
       const res = await fetch(
-        `https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${currentEmployee._id}`,
+        `http://localhost:3000/api/employees/${currentEmployee._id}`,
         {
           method: 'PUT',
           headers: {
@@ -149,7 +149,7 @@ export default function PartyData () {
     if (window.confirm('Are you sure you want to delete this employee?')) {
       try {
         const res = await fetch(
-          `https://my-whatsapp-bot-6a9u.onrender.com/api/employees/${id}`,
+          `http://localhost:3000/api/employees/${id}`,
           {
             method: 'DELETE'
           }

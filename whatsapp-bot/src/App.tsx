@@ -5,7 +5,7 @@ import Dashboard from './Pages/Dashboard'
 import Messages from './Pages/Messages'
 import MessageSchedular from './Pages/MessageSchedular'
 import ScheduledMessages from './Pages/ScheduledMessages'
-import SpeechGenerator from './Pages/SpeechGenerator'
+import ManageEvents from './Pages/ManageEvents'
 import ManageUsers from './Pages/ManageUsers'
 import EmployeeData from './Pages/EmployeeData'
 import PartyData from './Pages/PartyData'
@@ -33,7 +33,7 @@ function App () {
               <Route path='/messages' element={<ProtectedRoute><Messages /></ProtectedRoute>} />
               <Route path='/messageschedular' element={<ProtectedRoute><MessageSchedular /></ProtectedRoute>} />
               <Route path='/scheduledmessage' element={<ProtectedRoute><ScheduledMessages /></ProtectedRoute>} />
-              <Route path='/speechgenerator' element={<ProtectedRoute><SpeechGenerator /></ProtectedRoute>} />
+              <Route path='/manageevents' element={<ProtectedRoute><ManageEvents /></ProtectedRoute>} />
               <Route path='/manageusers' element={<ProtectedRoute><ManageUsers /></ProtectedRoute>} />
               <Route path='/employeedata' element={<ProtectedRoute><EmployeeData /></ProtectedRoute>} />
               <Route path='/partydata' element={<ProtectedRoute><PartyData /></ProtectedRoute>} />

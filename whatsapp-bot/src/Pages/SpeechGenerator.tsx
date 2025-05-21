@@ -82,7 +82,7 @@ export default function SpeechGenerator () {
     const fetchUsers = async () => {
       try {
         const res = await fetch(
-          'https://my-whatsapp-bot-6a9u.onrender.com/api/messages'
+          'http://localhost:3000/api/messages'
         )
         const data = await res.json() as MessageData[]
         const phoneSet = new Set(data.map(da => da.user.phone))
@@ -184,7 +184,7 @@ export default function SpeechGenerator () {
     try {
       // In a real app, you would call your WhatsApp API here
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/send-message',
+        'http://localhost:3000/api/send-message',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -1,16 +1,14 @@
 import StatsCard from '../components/StatsCard'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-// Define the Message and User interfaces
-interface Message {
+
+interface Event {
   _id: string
-  user: {
-    phone: string
-  }
-  text: string
-  aiReply: string
-  timestamp: string
-  status: 'pending' | 'replied' | 'error'
+  title: string
+  date: string
+  time: string
+  address: string
+  status: string
 }
 
 interface User {
@@ -19,14 +17,7 @@ interface User {
   lastInteraction: string
 }
 
-interface ScheduledMessage {
-  _id: string
-  text: string
-  scheduledTime: string
-  timestamp: string
-}
-
-export default function Dashboard () {
+export default function Dashboard() {
   interface StatItem {
     title: string
     value: string
@@ -34,79 +25,67 @@ export default function Dashboard () {
     trend: 'up' | 'down'
   }
 
-  const [todaysMessages, setTodaysMessages] = useState<Message[]>([])
-  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [todaysEvents, setTodaysEvents] = useState<Event[]>([])
+  const [totalEvents, setTotalEvents] = useState<number>(0)
   const [newUsersToday, setNewUsersToday] = useState<number>(0)
-  const [failedMessages, setFailedMessages] = useState<number>(0)
-  const [yesterdaysMessagesCount, setYesterdaysMessagesCount] = useState(0)
+  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [yesterdaysEventsCount, setYesterdaysEventsCount] = useState(0)
   const [yesterdaysUserCount, setYesterdaysUserCount] = useState(0)
-  const [scheduledToday, setScheduledToday] = useState<ScheduledMessage[]>([])
+  const [todaysUsers, setTodaysUsers] = useState<User[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [messageRes, userRes, scheduledRes] = await Promise.all([
-          fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/messages'),
-          fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/users'),
-          fetch(
-            'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages'
-          )
+        const [eventsRes, usersRes] = await Promise.all([
+          fetch('http://localhost:3000/api/events'),
+          fetch('http://localhost:3000/api/users')
         ])
 
-        const messageData: Message[] = await messageRes.json()
-        const userData: User[] = await userRes.json()
-        const scheduledData: ScheduledMessage[] = await scheduledRes.json()
+        const eventsData: Event[] = await eventsRes.json()
+        const usersData: User[] = await usersRes.json()
 
         const today = new Date()
-        const todayStr = today.toISOString().split('T')[0]
+        today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today)
+        tomorrow.setDate(tomorrow.getDate() + 1)
 
+        // Filter today's events
+        const filteredEvents = eventsData.filter(event => {
+          const eventDate = new Date(event.date)
+          return eventDate >= today && eventDate < tomorrow
+        })
+
+        // Filter today's users
+        const filteredUsers = usersData.filter(user => {
+          const userDate = new Date(user.lastInteraction)
+          return userDate >= today
+        })
+
+        // Get yesterday's data for comparison
         const yesterday = new Date()
         yesterday.setDate(today.getDate() - 1)
-        const yesterdayStr = yesterday.toISOString().split('T')[0]
+        yesterday.setHours(0, 0, 0, 0)
+        const yesterdayStart = new Date(yesterday)
+        yesterday.setHours(23, 59, 59, 999)
 
-        const filteredMessages = messageData.filter(message => {
-          const messageDate = new Date(message.timestamp)
-            .toISOString()
-            .split('T')[0]
-          return messageDate === todayStr
+        const yesterdaysEvents = eventsData.filter(event => {
+          const eventDate = new Date(event.date)
+          return eventDate >= yesterdayStart && eventDate < today
         })
 
-        const oldMessages = messageData.filter(message => {
-          const messageDate = new Date(message.timestamp)
-            .toISOString()
-            .split('T')[0]
-          return messageDate < todayStr
+        const yesterdaysUsers = usersData.filter(user => {
+          const userDate = new Date(user.lastInteraction)
+          return userDate >= yesterdayStart && userDate < today
         })
 
-        const todaysUsers = new Set(
-          filteredMessages.map(message => message.user.phone)
-        )
+        setTodaysEvents(filteredEvents)
+        setTotalEvents(eventsData.length)
+        setNewUsersToday(filteredUsers.length)
+        setTotalUsers(usersData.length)
+        setYesterdaysEventsCount(yesterdaysEvents.length)
+        setYesterdaysUserCount(yesterdaysUsers.length)
+        setTodaysUsers(filteredUsers)
 
-        const yesterdaysUsers = new Set(
-          oldMessages
-            .filter(msg => msg.timestamp.split('T')[0] === yesterdayStr)
-            .map(message => message.user.phone)
-        )
-
-        const failedToday = filteredMessages.filter(
-          message => message.status === 'error' || message.status === 'pending'
-        )
-
-        const scheduledTodayMsgs = scheduledData.filter(msg => {
-          return msg.scheduledTime.split('T')[0] === todayStr
-        })
-
-        setTodaysMessages(filteredMessages)
-        setTotalUsers(userData.length)
-        setNewUsersToday(todaysUsers.size)
-        setFailedMessages(failedToday.length)
-        setYesterdaysMessagesCount(
-          messageData.filter(
-            msg => msg.timestamp.split('T')[0] === yesterdayStr
-          ).length
-        )
-        setYesterdaysUserCount(yesterdaysUsers.size)
-        setScheduledToday(scheduledTodayMsgs)
       } catch (error) {
         toast.error('Error in fetching dashboard data')
         console.error('Failed to fetch dashboard data', error)
@@ -127,28 +106,28 @@ export default function Dashboard () {
 
   const stats: StatItem[] = [
     {
-      title: 'New Users',
-      value: `${newUsersToday}`,
+      title: "Today's Events",
+      value: todaysEvents.length.toString(),
+      change: calcChange(todaysEvents.length, yesterdaysEventsCount),
+      trend: calcTrend(todaysEvents.length, yesterdaysEventsCount)
+    },
+    {
+      title: "New Users Today",
+      value: newUsersToday.toString(),
       change: calcChange(newUsersToday, yesterdaysUserCount),
       trend: calcTrend(newUsersToday, yesterdaysUserCount)
     },
     {
-      title: 'New Messages',
-      value: `${todaysMessages.length}`,
-      change: calcChange(todaysMessages.length, yesterdaysMessagesCount),
-      trend: calcTrend(todaysMessages.length, yesterdaysMessagesCount)
+      title: "Total Events",
+      value: totalEvents.toString(),
+      change: "",
+      trend: "up"
     },
     {
-      title: 'Total Users',
-      value: `${totalUsers}`,
+      title: "Total Users",
+      value: totalUsers.toString(),
       change: calcChange(totalUsers, totalUsers - newUsersToday),
       trend: calcTrend(totalUsers, totalUsers - newUsersToday)
-    },
-    {
-      title: 'Not Replied Messages',
-      value: `${failedMessages}`,
-      change: '',
-      trend: 'up'
     }
   ]
 
@@ -177,91 +156,52 @@ export default function Dashboard () {
           ))}
         </div>
 
-        {/* Recent Activity */}
+        {/* Today's Events Section */}
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6'>
-          <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4'>
-            <h2 className='text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-0'>
-              Scheduled Messages Today
-            </h2>
-          </div>
-          {scheduledToday.length > 0 ? (
-            <ul className='text-sm text-gray-700 list-disc list-inside'>
-              {scheduledToday.map(msg => (
-                <li key={msg._id}>
-                  {new Date(msg.timestamp).toLocaleTimeString()} — {msg.text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className='text-center text-gray-500 text-sm py-4'>
-              No scheduled messages for today.
-            </div>
-          )}
-        </div>
-
-        {/* Today's Messages Table */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6'>
           <h2 className='text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4'>
-            Today's Messages
+            Today's Scheduled Events
           </h2>
-          {todaysMessages.length > 0 ? (
-            <div className='overflow-x-auto -mx-3 sm:mx-0'>
+          {todaysEvents.length > 0 ? (
+            <div className='overflow-x-auto'>
               <table className='min-w-full divide-y divide-gray-200'>
                 <thead className='bg-gray-50'>
                   <tr>
                     <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      No.
-                    </th>
-                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      From
-                    </th>
-                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Text
-                    </th>
-                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Reply
+                      Event
                     </th>
                     <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Time
                     </th>
+                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Location
+                    </th>
+                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className='bg-white divide-y divide-gray-200'>
-                  {todaysMessages.map((message, index) => (
-                    <tr key={message._id} className='hover:bg-gray-50'>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500'>
-                        {index + 1}
+                  {todaysEvents.map((event) => (
+                    <tr key={event._id} className='hover:bg-gray-50'>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm font-medium text-gray-900'>{event.title}</div>
                       </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4'>
-                        <div className='text-xs sm:text-sm font-medium text-gray-900'>
-                          {message.user.phone
-                            ? `+${message.user.phone.slice(
-                                0,
-                                2
-                              )} ${message.user.phone.slice(2)}`
-                            : ''}
-                        </div>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm text-gray-500'>{event.time || 'Not specified'}</div>
                       </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500 max-w-[100px] sm:max-w-xs truncate'>
-                        {message.text}
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm text-gray-500'>{event.address || 'Not specified'}</div>
                       </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500 max-w-[100px] sm:max-w-xs truncate'>
-                        {!message.aiReply?.trim() ? (
-                          <span
-                            className={`px-2 py-1 rounded-full ${
-                              message.status === 'pending'
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {message.status}
-                          </span>
-                        ) : (
-                          message.aiReply
-                        )}
-                      </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 text-xs sm:text-sm text-gray-500'>
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          event.status === 'confirmed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : event.status === 'pending' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-red-100 text-red-800'
+                        }`}>
+                          {event.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -269,9 +209,58 @@ export default function Dashboard () {
               </table>
             </div>
           ) : (
-            <p className='text-gray-500 text-sm'>
-              No messages found for today.
-            </p>
+            <div className='text-center text-gray-500 text-sm py-10'>
+              No events scheduled for today.
+            </div>
+          )}
+        </div>
+
+        {/* New Users Section */}
+        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-6'>
+          <h2 className='text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4'>
+            New Users Today
+          </h2>
+          {todaysUsers.length > 0 ? (
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200'>
+                <thead className='bg-gray-50'>
+                  <tr>
+                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Phone
+                    </th>
+                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Name
+                    </th>
+                    <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Last Interaction
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className='bg-white divide-y divide-gray-200'>
+                  {todaysUsers.map((user) => (
+                    <tr key={user.phone} className='hover:bg-gray-50'>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm font-medium text-gray-900'>
+                          {user.phone ? `+${user.phone.slice(0, 2)} ${user.phone.slice(2)}` : ''}
+                        </div>
+                      </td>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm text-gray-500'>{user.name || 'Not provided'}</div>
+                      </td>
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
+                        <div className='text-sm text-gray-500'>
+                          {new Date(user.lastInteraction).toLocaleString()}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className='text-center text-gray-500 text-sm py-10'>
+              No new users registered today.
+            </div>
           )}
         </div>
       </main>

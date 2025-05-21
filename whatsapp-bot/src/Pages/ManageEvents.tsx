@@ -17,7 +17,7 @@ interface User {
   lastInteraction?: string
 }
 
-export default function ManageUsers () {
+export default function ManageEvents () {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
