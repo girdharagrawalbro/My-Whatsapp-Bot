@@ -10,9 +10,7 @@ const mongoose = require('mongoose');
 const nodeCron = require('node-cron');
 const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const cors = require('cors');
-const { createCanvas, registerFont } = require('canvas');
-const fsPromises = require('fs').promises;
-
+const FormData = require('form-data');
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -22,27 +20,6 @@ app.use(cors());
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('\x1b[32m%s\x1b[0m', '✓ MongoDB Connected Successfully'))
   .catch(err => console.error('\x1b[31m%s\x1b[0m', '✗ MongoDB Connection Error:', err));
-
-// Try to register Hindi font, but continue without it if not available
-try {
-  // First try system fonts
-  const systemFonts = [
-    'Arial Unicode MS',
-    'Segoe UI',
-    'Tahoma',
-    'Verdana'
-  ];
-
-  // Set default font family
-  const defaultFont = systemFonts[0];
-
-  // Create canvas with default font
-  const canvas = createCanvas(100, 100);
-  const ctx = canvas.getContext('2d');
-  ctx.font = '24px ' + defaultFont;
-} catch (error) {
-  console.warn('Font registration warning:', error.message);
-}
 
 // --- SCHEMAS & MODELS ---
 const UserSchema = new mongoose.Schema({
@@ -61,9 +38,9 @@ const EventSchema = new mongoose.Schema({
   address: String,
   organizer: String,
   contactPhone: String,
-  mediaUrls: [String],
+  mediaUrls: String,
   extractedText: String,
-  mediaType: { type: String, enum: ['image', 'pdf', 'video'], required: true },
+  mediaType: { type: String, enum: ['image', 'pdf', 'video'], required: true, default: 'image' },
   createdAt: { type: Date, default: Date.now },
   status: {
     type: String,
@@ -76,14 +53,6 @@ const EventSchema = new mongoose.Schema({
   eventIndex: { type: Number, unique: true } // New field for indexing
 });
 
-const MessageSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  text: String,
-  aiReply: String,
-  timestamp: { type: Date, default: Date.now },
-  status: { type: String, enum: ['replied', 'failed'], default: '' },
-  hidden: { type: Boolean, default: false }
-});
 
 const ScheduledMessageSchema = new mongoose.Schema({
   message: String,
@@ -133,7 +102,6 @@ const MessageTemplateSchema = new mongoose.Schema({
 
 const Event = mongoose.model('Event', EventSchema);
 const User = mongoose.model('User', UserSchema);
-const Message = mongoose.model('Message', MessageSchema);
 const ScheduledMessage = mongoose.model('ScheduledMessage', ScheduledMessageSchema);
 const MessageTemplate = mongoose.model('MessageTemplate', MessageTemplateSchema);
 
@@ -157,6 +125,28 @@ function getPredefinedReply(message) {
   return null;
 }
 
+
+// Add this function to upload to ImageBB
+async function uploadToImageBB(filePath) {
+  try {
+    const form = new FormData();
+    form.append('image', fs.createReadStream(filePath));
+
+    const response = await axios.post('https://api.imgbb.com/1/upload', form, {
+      params: {
+        key: process.env.IMGBB_API_KEY
+      },
+      headers: form.getHeaders()
+    });
+
+    return response.data.data.url; // Returns the direct image URL
+  } catch (error) {
+    console.error('ImageBB upload failed:', error);
+    throw error;
+  }
+}
+
+// Modified downloadMediaFile function
 async function downloadMediaFile(mediaUrl, localFilePath) {
   try {
     const response = await axios({
@@ -172,16 +162,25 @@ async function downloadMediaFile(mediaUrl, localFilePath) {
     const writer = fs.createWriteStream(localFilePath);
     response.data.pipe(writer);
 
-    return new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       writer.on('finish', resolve);
       writer.on('error', reject);
     });
+
+    // Upload to ImageBB after download
+    const imageBBUrl = await uploadToImageBB(localFilePath);
+
+    return {
+      localPath: localFilePath,
+      imageBBUrl // This is the new URL you'll use
+    };
   } catch (error) {
-    console.error('Error downloading media file:', error);
+    console.error('Error processing media file:', error);
     throw error;
   }
 }
 
+// Extract text from Image, Pdf and Video(limitation in duration)
 async function extractEventDetailsFromMedia(filePath, mediaType) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -224,25 +223,30 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
       setTimeout(() => reject(new Error('Processing timeout after 2 minutes')), 120000);
     });
 
-    const prompt = `इस ${mediaType} से सभी कार्यक्रम विवरण निकालें। यदि कई कार्यक्रम हैं तो JSON सरणी के रूप में लौटाएं।
-प्रत्येक कार्यक्रम में निम्नलिखित फ़ील्ड होंगे:
-{
+    const prompt = `इस ${mediaType} से कार्यक्रम का विवरण निकालें। केवल एक मुख्य कार्यक्रम का विवरण इस JSON प्रारूप में दें:
+   
+    {
   "title": "कार्यक्रम का शीर्षक (मूल भाषा में)",
-  "description": "कार्यक्रम का विवरण",
+  "description": "कार्यक्रम का विवरण दर्ज करें (यदि यह शादी, सगाई या आशीर्वाद समारोह है, तो कृपया लड़के और लड़की का नाम लिखें)।",
   "date": "DD/MM/YYYY",
   "time": "HH:MM (AM/PM)",
   "address": "कार्यक्रम का पता",
   "organizer": "आयोजक का नाम",
   "contactPhone": "संपर्क फोन नंबर"
 }
-सभी कार्यक्रमों को शामिल करें, चाहे वे आंशिक रूप से ही पूर्ण क्यों न हों।`;
+
+    विशेष नियम:
+    1. विवाह कार्ड के लिए: केवल रिसेप्शन या आशीर्वाद समारोह की तारीख/समय निकालें (अन्य समारोहों को नजरअंदाज करें)
+    2. एकाधिक कार्यक्रम होने पर: कालानुक्रमिक रूप से अंतिम वाले को चुनें
+    3. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं
+`;
 
     const result = await Promise.race([
       model.generateContent([
         {
           inlineData: {
             data: base64Data,
-            mimeType: mimeType
+            mimeType: getMimeType(mediaType)
           }
         },
         prompt
@@ -257,8 +261,8 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
     text = text.replace(/```json|```/g, '').trim();
 
     // Find the first occurrence of '[' and last occurrence of ']'
-    const startIndex = text.indexOf('[');
-    const endIndex = text.lastIndexOf(']') + 1;
+    const startIndex = text.indexOf('{');
+    const endIndex = text.lastIndexOf('}') + 1;
 
     if (startIndex === -1 || endIndex === 0) {
       console.error('No JSON array found in response:', text);
@@ -271,7 +275,8 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
     let events;
     try {
       events = JSON.parse(jsonText);
-      console.log('Successfully parsed events:', events);
+      // console.log('Successfully parsed events:', events);
+      console.log('Successfully parsed events');
     } catch (e) {
       console.error('Failed to parse AI response:', jsonText);
       throw new Error('Failed to parse AI response as JSON');
@@ -297,6 +302,18 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
   }
 }
 
+// Helper functions
+function getMimeType(mediaType) {
+  const types = {
+    'image': 'image/jpeg',
+    'pdf': 'application/pdf',
+    'video': 'video/mp4'
+  };
+  return types[mediaType] || 'application/octet-stream';
+}
+
+
+// Format the event list as required for the client
 function formatEventList(events, withIndex = true) {
   let response = '';
   events.forEach((event) => {
@@ -309,101 +326,13 @@ function formatEventList(events, withIndex = true) {
     if (event.address) response += `स्थान: ${event.address}\n`;
     if (event.organizer) response += `आयोजक: ${event.organizer}\n`;
     if (event.contactPhone) response += `संपर्क: ${event.contactPhone}\n`;
+    if (event.mediaUrls) response += `link: ${event.mediaUrls}\n`;
     response += '\n';
   });
   return response;
 }
 
-async function generateEventListImage(events, title) {
-  try {
-    const padding = 40;
-    const lineHeight = 30;
-    const fontSize = 24;
-    const titleFontSize = 32;
-
-    // Calculate canvas dimensions
-    const maxWidth = 800;
-    let totalHeight = padding * 2 + titleFontSize + lineHeight;
-
-    // Calculate height needed for all events
-    events.forEach(event => {
-      totalHeight += lineHeight * 5; // Space for title, date, time, address, and organizer
-    });
-
-    // Create canvas
-    const canvas = createCanvas(maxWidth, totalHeight);
-    const ctx = canvas.getContext('2d');
-
-    // Set background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, maxWidth, totalHeight);
-
-    // Set text style with system font
-    ctx.fillStyle = '#000000';
-    ctx.textAlign = 'left';
-    ctx.font = `${titleFontSize}px Arial Unicode MS`;
-
-    // Draw title
-    ctx.fillText(title, padding, padding + titleFontSize);
-
-    // Draw events
-    let y = padding + titleFontSize + lineHeight;
-    ctx.font = `${fontSize}px Arial Unicode MS`;
-
-    events.forEach((event, index) => {
-      // Draw event title
-      ctx.fillStyle = '#1a73e8';
-      ctx.fillText(`${index + 1}. ${event.title}`, padding, y);
-      y += lineHeight;
-
-      // Draw event details
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`तारीख: ${event.date.toLocaleDateString('en-IN')}`, padding + 20, y);
-      y += lineHeight;
-
-      if (event.time) {
-        ctx.fillText(`समय: ${event.time}`, padding + 20, y);
-        y += lineHeight;
-      }
-
-      if (event.address) {
-        ctx.fillText(`स्थान: ${event.address}`, padding + 20, y);
-        y += lineHeight;
-      }
-
-      if (event.organizer) {
-        ctx.fillText(`आयोजक: ${event.organizer}`, padding + 20, y);
-        y += lineHeight;
-      }
-
-      // Add separator line
-      if (index < events.length - 1) {
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.beginPath();
-        ctx.moveTo(padding, y);
-        ctx.lineTo(maxWidth - padding, y);
-        ctx.stroke();
-        y += lineHeight;
-      }
-    });
-
-    // Save image to temporary file
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      await fsPromises.mkdir(tempDir);
-    }
-    const imagePath = path.join(tempDir, `event-list-${Date.now()}.png`);
-    const buffer = canvas.toBuffer('image/png');
-    await fsPromises.writeFile(imagePath, buffer);
-
-    return imagePath;
-  } catch (error) {
-    console.error('Error generating event list image:', error);
-    throw error;
-  }
-}
-
-
+// Process query with AI to get intended Keyword according to user input
 async function classifyQueryWithAI(query) {
   try {
     const prompt = `
@@ -411,8 +340,8 @@ async function classifyQueryWithAI(query) {
     - "today": For queries about today's events (e.g., "aaj ke karyakram", "आज क्या है")
     - "upcoming": For queries about future events (e.g., "aane wale programs", "भविष्य के कार्यक्रम")
     - "search": For general search queries (e.g., "bhajan sandhya khoje", "भजन संध्या के बारे में जानकारी")
-    - "update": For requests to modify events (admin only)
-    - "delete": For requests to remove events (admin only)
+    - "update": For requests to modify events 
+    - "delete": For requests to remove events 
     - "event_index": When query is just a number (event index)
     - "date": When query contains a specific date (e.g., "15/08/2024 ko kya hai")
     - "confirm": For positive confirmations (yes, haan, हाँ, सही है)
@@ -423,7 +352,7 @@ async function classifyQueryWithAI(query) {
 
     Query: "${query}"
     `;
-    
+
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response.text();
@@ -434,6 +363,7 @@ async function classifyQueryWithAI(query) {
   }
 }
 
+// Fetch the type of Query for Events
 async function queryEvents(query, phone, isAdmin = false, followUpContext = null) {
   console.log('\x1b[35m%s\x1b[0m', '🔍 Event Query Process Started:');
   console.log('\x1b[33m%s\x1b[0m', `Query: "${query}"`);
@@ -474,7 +404,7 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
     // Handle follow-up context with AI assistance
     if (followUpContext) {
       console.log('\x1b[36m%s\x1b[0m', '📝 Processing follow-up context:', followUpContext);
-      
+
       if (aiCategory === 'confirm' || query.match(/yes|haan|हाँ|confirm|पक्का/i)) {
         if (followUpContext.action === 'update') {
           const updatedEvent = await Event.findByIdAndUpdate(
@@ -771,7 +701,7 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
     };
 
     const searchEvents = await Event.find(searchQuery).sort({ date: 1 });
-    
+
     if (searchEvents.length > 0) {
       return {
         type: 'search',
@@ -780,7 +710,7 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
         message: `"${query}" से मिलते-जुलते कार्यक्रम:\n\n${formatEventList(searchEvents)}`
       };
     }
-    
+
     return {
       type: 'search',
       query,
@@ -810,6 +740,7 @@ function parseDate(dateString) {
 }
 
 module.exports = { queryEvents };
+
 // function parseDate(dateString) {
 //   if (!dateString) return new Date();
 
@@ -830,7 +761,7 @@ function getMediaType(contentType) {
 
 // Scheduled daily message at 6 AM
 function scheduleDailyNotifications() {
-  nodeCron.schedule('31 8 * * *', async () => {
+  nodeCron.schedule('0 6 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -864,52 +795,26 @@ function scheduleDailyNotifications() {
 }
 
 // Scheduled Remider before one hour of each event
-function scheduleEventReminders() {
-  // Run every minute to check for events happening in exactly 1 hour
-  nodeCron.schedule('* * * * *', async () => {
-    try {
-      const now = new Date();
-      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // Exactly 1 hour from now
+async function scheduleEventReminders() {
+  const now = new Date();
+  const nextHourMark = new Date(now.getTime() + 60 * 60 * 1000);
 
-      // Find events happening exactly 1 hour from now that haven't had reminders sent
-      const events = await Event.find({
-        date: { 
-          $gte: new Date(oneHourFromNow.getTime() - 60000), // 1 minute before target
-          $lte: oneHourFromNow // 1 minute after target
-        },
-        reminderSent: false,
-        status: 'confirmed'
-      });
+  // Find the next event needing a reminder
+  const nextEvent = await Event.findOne({
+    date: { $gte: nextHourMark },
+    reminderSent: false,
+    status: 'confirmed'
+  }).sort({ date: 1 });
 
-      // Get admin phone number from environment variables
-      const ADMIN_PHONE = process.env.ADMIN_PHONE_NUMBER;
-      if (!ADMIN_PHONE) {
-        throw new Error('ADMIN_PHONE_NUMBER is not set in environment variables');
-      }
-
-      for (const event of events) {
-        const reminderMessage = `🔔 कार्यक्रम की याद दिलाना (1 घंटे में):\n\n` +
-          `कार्यक्रम: ${event.title}\n` +
-          `तारीख: ${event.date.toLocaleDateString('en-IN')}\n` +
-          `समय: ${event.time || 'निर्धारित नहीं'}\n` +
-          `स्थान: ${event.address || 'निर्धारित नहीं'}\n\n` +
-          `कृपया समय पर पहुंचें।`;
-
-        // Send reminder only to admin
-        await sendWhatsAppMessage(ADMIN_PHONE, reminderMessage);
-
-        // Mark reminder as sent
-        await Event.findByIdAndUpdate(event._id, { reminderSent: true });
-        console.log(`Sent reminder for event: ${event.title} (${event._id}) to admin`);
-      }
-    } catch (error) {
-      console.error('Error in event reminder:', error.message);
-    }
-  }, {
-    scheduled: true,
-    timezone: "Asia/Kolkata"
-  });
+  if (nextEvent) {
+    const delay = nextEvent.date.getTime() - now.getTime() - 60 * 60 * 1000;
+    setTimeout(async () => {
+      await sendReminder(nextEvent);
+      scheduleEventReminders(); // Schedule the next one
+    }, delay);
+  }
 }
+
 async function sendWhatsAppMessage(to, body, quickReplies = null) {
   try {
     if (!process.env.TWILIO_WHATSAPP_NUMBER) {
@@ -1277,6 +1182,7 @@ app.post('/webhook', async (req, res) => {
 
   if (!from) return res.type('text/xml').send(twiml.toString());
 
+
   try {
     console.log('\x1b[35m%s\x1b[0m', '📨 Incoming Message:');
     console.log('\x1b[33m%s\x1b[0m', `From: ${from}`);
@@ -1310,7 +1216,7 @@ app.post('/webhook', async (req, res) => {
           const extension = mediaType === 'pdf' ? 'pdf' : mediaType === 'video' ? 'mp4' : 'jpg';
           const filePath = path.join(tempDir, `event-${Date.now()}.${extension}`);
 
-          await downloadMediaFile(mediaUrl, filePath);
+          const { imageBBUrl } = await downloadMediaFile(mediaUrl, filePath);
           console.log('\x1b[32m%s\x1b[0m', '✓ File downloaded successfully');
 
           const eventDetails = await extractEventDetailsFromMedia(filePath, mediaType);
@@ -1338,7 +1244,7 @@ app.post('/webhook', async (req, res) => {
                 address: eventData.address,
                 organizer: eventData.organizer,
                 contactPhone: eventData.contactPhone,
-                mediaUrls: [mediaUrl],
+                mediaUrls: imageBBUrl,
                 mediaType,
                 extractedText: JSON.stringify(eventData),
                 status: 'confirmed',
@@ -1357,7 +1263,8 @@ app.post('/webhook', async (req, res) => {
 
         const confirmMsg = `✅ आपकी कार्यक्रम सेव किए गए हैं!\n`;
 
-        await sendWhatsAppMessage(from, confirmMsg);
+        // await sendWhatsAppMessage(from, confirmMsg);
+
         twiml.message(`आपकी File को सफलतापूर्वक प्रोसेस किया गया है!`);
       } else if (text.trim()) {
         console.log(text);
@@ -1426,8 +1333,10 @@ app.post('/webhook', async (req, res) => {
 
       let reply = '';
       if (isNewUser) {
-        reply = 'नमस्ते! आपका स्वागत है. आपने पहली बार मैसेज किया है। कैसे मदद कर सकते हैं? \n';
+        reply = 'नमस्ते! आपका स्वागत है. \n';
       }
+
+      reply = getPredefinedReply(text);
 
       const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
 
@@ -1520,13 +1429,32 @@ app.get('/api/scheduled-messages', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch scheduled messages' });
   }
 });
-app.get('/api/cron-job/', async (req, res) =>{
-  try{
+app.post('/api/scheduled-messages/visibility', async (req, res) => {
+  try {
+    const { ids, hidden } = req.body
+
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ error: 'invalid request body' })
+    }
+
+    await ScheduledMessage.updateMany(
+      { _id: { $in: ids } },
+      { $set: { hidden } }
+    )
+
+    res.json({ success: true })
+  } catch (error) {
+    res.ststus(500).json({ error: 'failed to update visiblity' })
+  }
+})
+
+app.get('/api/cron-job/', async (req, res) => {
+  try {
     const message = "Hello from My Whataapp Bot Backend";
     res.json(message);
   }
-  catch(error){
-console.error('Error sending message:', error);
+  catch (error) {
+    console.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send messages' });
   }
 })
@@ -1551,7 +1479,3 @@ app.listen(PORT, () => {
   scheduleDailyNotifications();
   scheduleEventReminders();
 });
-
-
-
-

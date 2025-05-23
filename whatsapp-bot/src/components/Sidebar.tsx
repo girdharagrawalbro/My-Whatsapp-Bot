@@ -158,34 +158,7 @@ export default function Sidebar () {
         </NavLink>
        
         <NavLink
-          to='/messages'
-          className={({ isActive }: { isActive: boolean }) =>
-            `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-              isActive
-                ? 'bg-indigo-700 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`
-          }
-        >
-          <svg
-            xmlns='http://www.w3.org/2000/svg'
-            className='h-5 w-5'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'
-          >
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth={2}
-              d='M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z'
-            />
-          </svg>
-          All Messages
-        </NavLink>
-      
-        <NavLink
-          to='/partydata'
+          to='/templates'
           className={({ isActive }: { isActive: boolean }) =>
             `flex items-center gap-3 p-3 rounded-lg transition-colors ${
               isActive

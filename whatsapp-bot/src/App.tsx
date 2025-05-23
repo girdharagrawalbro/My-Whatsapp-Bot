@@ -2,15 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import Dashboard from './Pages/Dashboard'
-import Messages from './Pages/Messages'
 import MessageSchedular from './Pages/MessageSchedular'
 import ScheduledMessages from './Pages/ScheduledMessages'
 import ManageEvents from './Pages/ManageEvents'
 import ManageUsers from './Pages/ManageUsers'
-import EmployeeData from './Pages/EmployeeData'
-import PartyData from './Pages/PartyData'
 import Settings from './Pages/Settings'
 import Sidebar from './components/Sidebar'
+import TemplateManagement from './Pages/TemplateManagement'
 import Login from './Pages/Login'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './lib/AuthContext'
@@ -30,13 +28,11 @@ function App () {
             <Routes>
               <Route path='/login' element={<Login />} />
               <Route path='/' element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path='/messages' element={<ProtectedRoute><Messages /></ProtectedRoute>} />
               <Route path='/messageschedular' element={<ProtectedRoute><MessageSchedular /></ProtectedRoute>} />
               <Route path='/scheduledmessage' element={<ProtectedRoute><ScheduledMessages /></ProtectedRoute>} />
               <Route path='/manageevents' element={<ProtectedRoute><ManageEvents /></ProtectedRoute>} />
               <Route path='/manageusers' element={<ProtectedRoute><ManageUsers /></ProtectedRoute>} />
-              <Route path='/employeedata' element={<ProtectedRoute><EmployeeData /></ProtectedRoute>} />
-              <Route path='/partydata' element={<ProtectedRoute><PartyData /></ProtectedRoute>} />
+              <Route path='/templates' element={<ProtectedRoute><TemplateManagement /></ProtectedRoute>} />
               <Route path='/settings' element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             </Routes>
           </div>

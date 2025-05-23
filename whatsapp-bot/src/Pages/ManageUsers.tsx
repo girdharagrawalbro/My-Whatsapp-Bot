@@ -30,8 +30,8 @@ export default function ManageUsers () {
   const [formData, setFormData] = useState({
     phone: '',
     name: ''
-  })
 
+  })
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
@@ -45,14 +45,10 @@ export default function ManageUsers () {
         const usersData = await usersRes.json()
         setUsers(usersData)
 
-        // Fetch messages
-        const messagesRes = await fetch(
-          'http://localhost:3000/api/messages'
-        )
-        const messagesData = await messagesRes.json()
-        setMessages(messagesData)
+       
+        setError(null)
       } catch (err) {
-        setError('Failed to load data')
+        setError('Failed to load users')
         console.error(err)
       } finally {
         setLoading(false)
@@ -73,14 +69,9 @@ export default function ManageUsers () {
       const usersData = await usersRes.json()
       setUsers(usersData)
 
-      // Fetch messages
-      const messagesRes = await fetch(
-        'http://localhost:3000/api/messages'
-      )
-      const messagesData = await messagesRes.json()
-      setMessages(messagesData)
+      setError(null)
     } catch (err) {
-      setError('Failed to load data')
+      setError('Failed to load users')
       console.error(err)
     } finally {
       setLoading(false)
@@ -178,15 +169,7 @@ export default function ManageUsers () {
     setShowEditForm(true)
   }
 
-  // Get last message for each user
-  const getUserLastMessage = (phone: string) => {
-    return messages
-      .filter(m => m.user.phone === phone)
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )[0]
-  }
+ 
 
   // Filter and pagination logic
   const filteredUsers = users.filter(
@@ -387,14 +370,9 @@ export default function ManageUsers () {
                     Name
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Last Message
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Last Interaction
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Status
-                  </th>
+                  
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Actions
                   </th>
@@ -403,7 +381,6 @@ export default function ManageUsers () {
               <tbody className='bg-white divide-y divide-gray-200'>
                 {currentUsers.length > 0 ? (
                   currentUsers.map((user, index) => {
-                    const lastMessage = getUserLastMessage(user.phone)
                     return (
                       <tr key={user._id} className='hover:bg-gray-50'>
                         <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
@@ -422,25 +399,9 @@ export default function ManageUsers () {
                           {user.name || 'N/A'}
                         </td>
                         <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                          {lastMessage?.text || 'No messages'}
-                        </td>
-                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                          {lastMessage
-                            ? new Date(lastMessage.timestamp).toLocaleString()
+                          {user.lastInteraction
+                            ? new Date(user.lastInteraction).toLocaleString()
                             : ''}
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              lastMessage?.status === 'replied'
-                                ? 'bg-green-100 text-green-800'
-                                : lastMessage?.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {lastMessage?.status || 'N/A'}
-                          </span>
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
                           <div className='flex space-x-2'>

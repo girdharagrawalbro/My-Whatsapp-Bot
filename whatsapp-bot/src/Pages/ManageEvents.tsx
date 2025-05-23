@@ -10,15 +10,19 @@ import {
   FiX
 } from 'react-icons/fi'
 
-interface User {
+interface Event {
   _id: string
-  phone: string
-  name?: string
-  lastInteraction?: string
+  title: string
+  date: string
+  description: string
+  organizer?: string
+  contactPhone?:number
+  address?: string
+  mediaUrls?: string 
 }
 
 export default function ManageEvents () {
-  const [users, setUsers] = useState<User[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -26,219 +30,201 @@ export default function ManageEvents () {
   const [itemsPerPage] = useState(10)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [currentEvent, setCurrentEvent] = useState<Event | null>(null)
+  const [filters, setFilters] = useState({
+      date: '',
+    })
+  
   const [formData, setFormData] = useState({
-    phone: '',
-    name: ''
+    name: '',
+    date: '',
+    organizer: ''
   })
 
-  // Fetch data
+  // Fetch events
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchEvents = async () => {
       try {
         setLoading(true)
-
-        // Fetch users
-        const usersRes = await fetch(
-          'http://localhost:3000/api/users'
-        )
-        const usersData = await usersRes.json()
-        setUsers(usersData)
-
-        // Fetch messages
-        const messagesRes = await fetch(
-          'http://localhost:3000/api/messages'
-        )
-        const messagesData = await messagesRes.json()
-        setMessages(messagesData)
+        const res = await fetch('http://localhost:3000/api/events')
+        const data = await res.json()
+        setEvents(data)
+        setError(null)
       } catch (err) {
-        setError('Failed to load data')
-        console.error(err)
+        setError('Failed to load events')
+        setEvents([])
       } finally {
         setLoading(false)
       }
     }
-
-    fetchData()
+    fetchEvents()
   }, [])
 
   const handleRefresh = async () => {
     try {
       setLoading(true)
-
-      // Fetch users
-      const usersRes = await fetch(
-        'http://localhost:3000/api/users'
-      )
-      const usersData = await usersRes.json()
-      setUsers(usersData)
-
-      // Fetch messages
-      const messagesRes = await fetch(
-        'http://localhost:3000/api/messages'
-      )
-      const messagesData = await messagesRes.json()
-      setMessages(messagesData)
+      const res = await fetch('http://localhost:3000/api/events')
+      const data = await res.json()
+      setEvents(data)
+      setError(null)
     } catch (err) {
-      setError('Failed to load data')
-      console.error(err)
+      setError('Failed to load events')
+      setEvents([])
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddUser = async (e: React.FormEvent) => {
+  const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch(
-        'http://localhost:3000/api/users',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ...formData
-          })
-        }
-      )
-
+      const res = await fetch('http://localhost:3000/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
       if (res.ok) {
-        const newUser = await res.json()
-        setUsers([...users, newUser])
+        const newEvent = await res.json()
+        setEvents([...events, newEvent])
         setShowAddForm(false)
         resetForm()
       }
     } catch (err) {
-      setError('Failed to add user')
+      setError('Failed to add event')
     }
   }
 
-  const handleEditUser = async (e: React.FormEvent) => {
+  const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentUser) return
-
+    if (!currentEvent) return
     try {
-      const res = await fetch(
-        `http://localhost:3000/api/users/${currentUser._id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ...formData
-          })
-        }
-      )
-
+      const res = await fetch(`http://localhost:3000/api/events/${currentEvent._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
       if (res.ok) {
-        const updatedUser = await res.json()
-        setUsers(users.map(u => (u._id === updatedUser._id ? updatedUser : u)))
+        const updatedEvent = await res.json()
+        setEvents(events.map(ev => (ev._id === updatedEvent._id ? updatedEvent : ev)))
         setShowEditForm(false)
         resetForm()
       }
     } catch (err) {
-      setError('Failed to update user')
+      setError('Failed to update event')
     }
   }
 
-  const handleDeleteUser = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const handleDeleteEvent = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        const res = await fetch(
-          `http://localhost:3000/api/users/${id}`,
-          {
-            method: 'DELETE'
-          }
-        )
-
+        const res = await fetch(`http://localhost:3000/api/events/${id}`, {
+          method: 'DELETE'
+        })
         if (res.ok) {
-          setUsers(users.filter(u => u._id !== id))
+          setEvents(events.filter(ev => ev._id !== id))
         }
       } catch (err) {
-        setError('Failed to delete user')
+        setError('Failed to delete event')
       }
     }
   }
 
   const resetForm = () => {
     setFormData({
-      phone: '',
-      name: ''
+      name: '',
+      date: '',
+      organizer: ''
     })
   }
 
-  const openEditForm = (user: User) => {
-    setCurrentUser(user)
+  const openEditForm = (event: Event) => {
+    setCurrentEvent(event)
     setFormData({
-      phone: user.phone,
-      name: user.name || ''
+      name: event.title,
+      date: event.date.slice(0, 16), // for datetime-local input
+      organizer: event.organizer || ''
     })
     setShowEditForm(true)
   }
 
-  // Get last message for each user
-  const getUserLastMessage = (phone: string) => {
-    return messages
-      .filter(m => m.user.phone === phone)
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )[0]
+    const applyFilters = (newFilters: Partial<typeof filters>) => {
+    setFilters({ ...filters, ...newFilters })
+    setCurrentPage(1)
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      date: '',
+    })
   }
 
   // Filter and pagination logic
-  const filteredUsers = users.filter(
-    user =>
-      user.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredEvents = events.filter(
+    event => {
+       const matchesSearch =
+      (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (event.address && event.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (event.organizer && event.organizer.toLowerCase().includes(searchTerm.toLowerCase()))
+
+       const matchesDate =
+      !filters.date ||
+      new Date(event.date).toDateString() ===
+        new Date(filters.date).toDateString()
+
+    return matchesSearch && matchesDate
+})
 
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+  const currentEvents = filteredEvents.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
 
   return (
     <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden m-6'>
-      {/* Add User Modal */}
+      {/* Add Event Modal */}
       {showAddForm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
           <div className='bg-white rounded-lg p-6 w-full max-w-md'>
             <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold'>Add New User</h3>
+              <h3 className='text-lg font-semibold'>Add New Event</h3>
               <button onClick={() => setShowAddForm(false)}>
                 <FiX className='text-gray-500' />
               </button>
             </div>
-            <form onSubmit={handleAddUser}>
+            <form onSubmit={handleAddEvent}>
               <div className='space-y-4'>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Phone Number*
-                  </label>
-                  <input
-                    type='text'
-                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.phone}
-                    onChange={e =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    Name
+                    Event Name*
                   </label>
                   <input
                     type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
                     value={formData.name}
-                    onChange={e =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Date & Time*
+                  </label>
+                  <input
+                    type='datetime-local'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.date}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Organizer
+                  </label>
+                  <textarea
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.organizer}
+                    onChange={e => setFormData({ ...formData, organizer: e.target.value })}
                   />
                 </div>
               </div>
@@ -254,7 +240,7 @@ export default function ManageEvents () {
                   type='submit'
                   className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 >
-                  Add User
+                  Add Event
                 </button>
               </div>
             </form>
@@ -262,43 +248,50 @@ export default function ManageEvents () {
         </div>
       )}
 
-      {/* Edit User Modal */}
-      {showEditForm && currentUser && (
+      {/* Edit Event Modal */}
+      {showEditForm && currentEvent && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
           <div className='bg-white rounded-lg p-6 w-full max-w-md'>
             <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold'>Edit User</h3>
+              <h3 className='text-lg font-semibold'>Edit Event</h3>
               <button onClick={() => setShowEditForm(false)}>
                 <FiX className='text-gray-500' />
               </button>
             </div>
-            <form onSubmit={handleEditUser}>
+            <form onSubmit={handleEditEvent}>
               <div className='space-y-4'>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Phone Number*
-                  </label>
-                  <input
-                    type='text'
-                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.phone}
-                    onChange={e =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    Name
+                    Event Name*
                   </label>
                   <input
                     type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
                     value={formData.name}
-                    onChange={e =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Date & Time*
+                  </label>
+                  <input
+                    type='datetime-local'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.date}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Organizer
+                  </label>
+                  <textarea
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.organizer}
+                    onChange={e => setFormData({ ...formData, organizer: e.target.value })}
                   />
                 </div>
               </div>
@@ -314,7 +307,7 @@ export default function ManageEvents () {
                   type='submit'
                   className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                 >
-                  Update User
+                  Update Event
                 </button>
               </div>
             </form>
@@ -324,7 +317,7 @@ export default function ManageEvents () {
 
       {/* Main Content */}
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
-        <h2 className='text-lg font-semibold text-gray-800'>User Management</h2>
+        <h2 className='text-lg font-semibold text-gray-800'>Event Management</h2>
         <div className='flex flex-col sm:flex-row gap-3 w-full sm:w-auto'>
           <div className='relative flex-1 sm:w-64'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -332,11 +325,27 @@ export default function ManageEvents () {
             </div>
             <input
               type='text'
-              placeholder='Search users...'
+              placeholder='Search events...'
               className='pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
+          </div>
+           <div>
+            <input
+              type='date'
+              className='w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+              onChange={e => applyFilters({ date: e.target.value })}
+              value={filters.date}
+            />
+          </div>
+           <div className='flex items-end'>
+            <button
+              className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors'
+              onClick={clearFilters}
+            >
+              Clear
+            </button>
           </div>
           <button
             className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
@@ -351,7 +360,7 @@ export default function ManageEvents () {
             onClick={() => setShowAddForm(true)}
           >
             <FiPlus />
-            <span>Add User</span>
+            <span>Add Event</span>
           </button>
         </div>
       </div>
@@ -381,93 +390,107 @@ export default function ManageEvents () {
                     S.No.
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Phone
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Name
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Last Message
+                    Description
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Last Interaction
+                    Date & Time
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Status
+                    Organizer
                   </th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Actions
+                    Address
+                  </th>
+
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Contact
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Link
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Action
                   </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
-                {currentUsers.length > 0 ? (
-                  currentUsers.map((user, index) => {
-                    const lastMessage = getUserLastMessage(user.phone)
-                    return (
-                      <tr key={user._id} className='hover:bg-gray-50'>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                          {indexOfFirstItem + index + 1}
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm font-medium text-gray-900'>
-                            {user.phone
-                              ? `+${user.phone.slice(0, 2)} ${user.phone.slice(
-                                  2
-                                )}`
-                              : 'N/A'}
-                          </div>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                          {user.name || 'N/A'}
-                        </td>
-                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                          {lastMessage?.text || 'No messages'}
-                        </td>
-                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                          {lastMessage
-                            ? new Date(lastMessage.timestamp).toLocaleString()
-                            : ''}
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              lastMessage?.status === 'replied'
-                                ? 'bg-green-100 text-green-800'
-                                : lastMessage?.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
+                {currentEvents.length > 0 ? (
+                  currentEvents.map((event, index) => (
+                    <tr key={event._id} className='hover:bg-gray-50'>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                        {indexOfFirstItem + index + 1}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <div className='truncate'>{event.title}</div>
+                          {event.title && event.title.length > 10 && (
+                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
+                              <div className='whitespace-normal break-words'>
+                                {event.title}
+                              </div>
+                            </div>
+                          )}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <div className='truncate'>{event.description}</div>
+                          {event.description && event.description.length > 10 && (
+                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
+                              <div className='whitespace-normal break-words'>
+                                {event.description}
+                              </div>
+                            </div>
+                          )}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                        {event.date ? new Date(event.date).toLocaleString() : ''}
+                      </td>
+                                            <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                           <div className='truncate'>{event.organizer}</div>
+                          {event.organizer && event.organizer.length > 10 && (
+                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
+                              <div className='whitespace-normal break-words'>
+                                {event.organizer}
+                              </div>
+                            </div>
+                          )}
+                      </td>
+
+                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                        {event.address || 'N/A'}
+                      </td>
+                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                        {event.contactPhone || 'N/A'}
+                      </td>
+                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                        {event.mediaUrls || 'N/A'}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                        <div className='flex space-x-2'>
+                          <button
+                            onClick={() => openEditForm(event)}
+                            className='text-indigo-600 hover:text-indigo-900'
                           >
-                            {lastMessage?.status || 'N/A'}
-                          </span>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                          <div className='flex space-x-2'>
-                            <button
-                              onClick={() => openEditForm(user)}
-                              className='text-indigo-600 hover:text-indigo-900'
-                            >
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user._id)}
-                              className='text-red-600 hover:text-red-900'
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(event._id)}
+                            className='text-red-600 hover:text-red-900'
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       className='px-6 py-4 text-center text-sm text-gray-500'
                     >
-                      No users found
+                      No events found
                     </td>
                   </tr>
                 )}
@@ -476,16 +499,16 @@ export default function ManageEvents () {
           </div>
 
           {/* Pagination */}
-          {filteredUsers.length > itemsPerPage && (
+          {filteredEvents.length > itemsPerPage && (
             <div className='px-6 py-4 border-t border-gray-200 flex items-center justify-between'>
               <div className='text-sm text-gray-700'>
                 Showing{' '}
                 <span className='font-medium'>{indexOfFirstItem + 1}</span> to{' '}
                 <span className='font-medium'>
-                  {Math.min(indexOfLastItem, filteredUsers.length)}
+                  {Math.min(indexOfLastItem, filteredEvents.length)}
                 </span>{' '}
-                of <span className='font-medium'>{filteredUsers.length}</span>{' '}
-                users
+                of <span className='font-medium'>{filteredEvents.length}</span>{' '}
+                events
               </div>
               <div className='flex space-x-2'>
                 <button
