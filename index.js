@@ -1521,6 +1521,16 @@ app.get('/api/scheduled-messages', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch scheduled messages' });
   }
 });
+app.get('/api/cron-job/', async (req, res) =>{
+  try{
+    const messag = "Hello from Whataapp Bot Backend";
+    res.json(message);
+  }
+  catch(error){
+console.error('Error sending message:', error);
+    res.status(500).json({ error: 'Failed to send messages' });
+  }
+})
 
 // Add this helper function after the EventSchema definition
 async function getNextEventIndex() {
