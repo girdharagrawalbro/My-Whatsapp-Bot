@@ -313,6 +313,7 @@ function formatEventList(events, withIndex = true) {
   });
   return response;
 }
+
 async function generateEventListImage(events, title) {
   try {
     const padding = 40;
@@ -402,6 +403,37 @@ async function generateEventListImage(events, title) {
   }
 }
 
+
+async function classifyQueryWithAI(query) {
+  try {
+    const prompt = `
+    Analyze this user query about events and classify it into exactly one of these standard categories:
+    - "today": For queries about today's events (e.g., "aaj ke karyakram", "आज क्या है")
+    - "upcoming": For queries about future events (e.g., "aane wale programs", "भविष्य के कार्यक्रम")
+    - "search": For general search queries (e.g., "bhajan sandhya khoje", "भजन संध्या के बारे में जानकारी")
+    - "update": For requests to modify events (admin only)
+    - "delete": For requests to remove events (admin only)
+    - "event_index": When query is just a number (event index)
+    - "date": When query contains a specific date (e.g., "15/08/2024 ko kya hai")
+    - "confirm": For positive confirmations (yes, haan, हाँ, सही है)
+    - "cancel": For negative responses (no, nahi, नहीं, रद्द करो)
+    - "unknown": If none of the above match
+
+    Respond ONLY with the category keyword from the list above. No other text or explanation.
+
+    Query: "${query}"
+    `;
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return response.trim().toLowerCase();
+  } catch (error) {
+    console.error('AI classification error:', error);
+    return 'unknown';
+  }
+}
+
 async function queryEvents(query, phone, isAdmin = false, followUpContext = null) {
   console.log('\x1b[35m%s\x1b[0m', '🔍 Event Query Process Started:');
   console.log('\x1b[33m%s\x1b[0m', `Query: "${query}"`);
@@ -409,6 +441,10 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
   console.log('\x1b[33m%s\x1b[0m', `Is Admin: ${isAdmin}`);
 
   try {
+    // First get AI classification
+    const aiCategory = await classifyQueryWithAI(query);
+    console.log('\x1b[36m%s\x1b[0m', `AI Classification: ${aiCategory}`);
+
     // Check if the query is a number (potential event index)
     const indexNumber = parseInt(query);
     if (!isNaN(indexNumber)) {
@@ -435,9 +471,11 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       }
     }
 
+    // Handle follow-up context with AI assistance
     if (followUpContext) {
       console.log('\x1b[36m%s\x1b[0m', '📝 Processing follow-up context:', followUpContext);
-      if (query.match(/yes|haan|हाँ|confirm|पक्का/i)) {
+      
+      if (aiCategory === 'confirm' || query.match(/yes|haan|हाँ|confirm|पक्का/i)) {
         if (followUpContext.action === 'update') {
           const updatedEvent = await Event.findByIdAndUpdate(
             followUpContext.eventId,
@@ -462,11 +500,10 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
           };
         }
       }
-      else if (query.match(/no|nahi|नहीं|cancel|रद्द/i)) {
+      else if (aiCategory === 'cancel' || query.match(/no|nahi|नहीं|cancel|रद्द/i)) {
         return { message: 'कार्यवाही रद्द कर दी गई है।' };
       }
       else if (followUpContext.action === 'select_event') {
-        // Handle event selection by index
         const selectedIndex = parseInt(query) - 1;
         if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= followUpContext.events.length) {
           return {
@@ -528,11 +565,10 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
           fieldName = 'address';
           updates.prompt = 'नया स्थान भेजें:';
         }
-        else if (query.match(/cancel|रद्द/i)) {
+        else if (aiCategory === 'cancel') {
           return { message: 'अपडेट रद्द कर दिया गया।' };
         }
         else {
-          // Handle the actual update value
           if (followUpContext.field === 'date') {
             const dateMatch = query.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
             if (!dateMatch) {
@@ -585,7 +621,8 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       }
     }
 
-    if (isAdmin && query.match(/(update|change|बदल|अपडेट)/i)) {
+    // Handle admin commands
+    if (isAdmin && aiCategory === 'update') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -612,7 +649,7 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       };
     }
 
-    if (isAdmin && query.match(/(delete|remove|cancel|हटाएं|रद्द)/i)) {
+    if (isAdmin && aiCategory === 'delete') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -639,50 +676,16 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       };
     }
 
-    // Enhanced Hindi query patterns
-    const queryPatterns = {
-      today: [
-        /aaj\s*ke\s*karyakram/i,
-        /aaj\s*kya\s*hai/i,
-        /aaj\s*kya\s*karyakram\s*hai/i,
-        /aaj\s*kya\s*program\s*hai/i,
-        /today/i,
-        /today's\s*events/i
-      ],
-      upcoming: [
-        /aagami\s*karyakram/i,
-        /bhavishya\s*ke\s*karyakram/i,
-        /aane\s*wale\s*karyakram/i,
-        /koi\s*aagami\s*karyakram/i,
-        /upcoming/i,
-        /all\s*events/i,
-        /future\s*events/i
-      ],
-      search: [
-        /khoj/i,
-        /search/i,
-        /find/i,
-        /kya\s*hai/i,
-        /batao/i,
-        /jankari/i
-      ]
-    };
-
-    // Check for today's events
-    if (queryPatterns.today.some(pattern => pattern.test(query))) {
-      console.log('\x1b[36m%s\x1b[0m', '📅 Fetching today\'s events...');
+    // Handle event queries based on AI category
+    if (aiCategory === 'today') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      console.log('\x1b[33m%s\x1b[0m', `Date Range: ${today.toISOString()} to ${tomorrow.toISOString()}`);
-
       const events = await Event.find({
         date: { $gte: today, $lt: tomorrow },
       }).sort({ time: 1 });
-
-      console.log('\x1b[32m%s\x1b[0m', `✓ Found ${events.length} events for today`);
 
       if (events.length > 0) {
         return {
@@ -691,7 +694,6 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
           message: `आज के कार्यक्रम:\n\n${formatEventList(events)}`
         };
       }
-      console.log('\x1b[33m%s\x1b[0m', '⚠️ No events found for today');
       return {
         type: 'today',
         events,
@@ -699,13 +701,9 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       };
     }
 
-    // Check for upcoming events
-    if (queryPatterns.upcoming.some(pattern => pattern.test(query))) {
-      console.log('\x1b[36m%s\x1b[0m', '📅 Fetching upcoming events...');
+    if (aiCategory === 'upcoming') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
-      console.log('\x1b[33m%s\x1b[0m', `Fetching events from: ${today.toISOString()}`);
 
       const events = await Event.find({
         date: { $gte: today },
@@ -713,17 +711,13 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
         .sort({ date: 1, time: 1 })
         .limit(10);
 
-      console.log('\x1b[32m%s\x1b[0m', `✓ Found ${events.length} upcoming events`);
-
       if (events.length > 0) {
-        console.log("am here")
         return {
           type: 'upcoming',
           events,
           message: `आगामी कार्यक्रम:\n\n${formatEventList(events)}`
         };
       }
-      console.log('\x1b[33m%s\x1b[0m', '⚠️ No upcoming events found');
       return {
         type: 'upcoming',
         events,
@@ -731,53 +725,42 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       };
     }
 
-    // Check for specific date
-    const dateMatch = query.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-    if (dateMatch) {
-      const [day, month, year] = dateMatch[0].split('/');
-      console.log('\x1b[36m%s\x1b[0m', `📅 Fetching events for date: ${day}/${month}/${year}`);
+    if (aiCategory === 'date') {
+      const dateMatch = query.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+      if (dateMatch) {
+        const [day, month, year] = dateMatch[0].split('/');
+        const startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+        const endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
 
-      const startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-      const endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
+        const events = await Event.find({
+          date: { $gte: startDate, $lte: endDate },
+        }).sort({ time: 1 });
 
-      console.log('\x1b[33m%s\x1b[0m', `Date Range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-
-      const events = await Event.find({
-        date: { $gte: startDate, $lte: endDate },
-      }).sort({ time: 1 });
-
-      console.log('\x1b[32m%s\x1b[0m', `✓ Found ${events.length} events for ${day}/${month}/${year}`);
-
-      if (events.length > 0) {
+        if (events.length > 0) {
+          return {
+            type: 'date',
+            date: `${day}/${month}/${year}`,
+            events,
+            message: `${day}/${month}/${year} के कार्यक्रम:\n\n${formatEventList(events)}`
+          };
+        }
         return {
           type: 'date',
           date: `${day}/${month}/${year}`,
           events,
-          message: `${day}/${month}/${year} के कार्यक्रम:\n\n${formatEventList(events)}`
+          message: `${day}/${month}/${year} को कोई कार्यक्रम नहीं मिला।`,
         };
       }
-      console.log('\x1b[33m%s\x1b[0m', `⚠️ No events found for ${day}/${month}/${year}`);
-      return {
-        type: 'date',
-        date: `${day}/${month}/${year}`,
-        events,
-        message: `${day}/${month}/${year} को कोई कार्यक्रम नहीं मिला।`,
-      };
     }
 
-    // Check for search query
-    if (queryPatterns.search.some(pattern => pattern.test(query))) {
-      console.log('\x1b[36m%s\x1b[0m', '🔍 Search prompt detected');
+    if (aiCategory === 'search') {
       return {
         type: 'search_prompt',
         message: 'किस प्रकार के कार्यक्रम खोज रहे हैं? कीवर्ड भेजें:',
       };
     }
 
-    // General search
-    console.log('\x1b[36m%s\x1b[0m', `🔍 Performing general search for: "${query}"`);
-    console.log('\x1b[33m%s\x1b[0m', 'Searching in fields: title, description, address, organizer');
-
+    // General search fallback
     const searchQuery = {
       $or: [
         { title: { $regex: query, $options: 'i' } },
@@ -787,11 +770,8 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
       ]
     };
 
-    console.log('\x1b[33m%s\x1b[0m', 'Search query:', JSON.stringify(searchQuery, null, 2));
-
     const searchEvents = await Event.find(searchQuery).sort({ date: 1 });
-    console.log('\x1b[32m%s\x1b[0m', `✓ Found ${searchEvents.length} matching events`);
-
+    
     if (searchEvents.length > 0) {
       return {
         type: 'search',
@@ -800,7 +780,7 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
         message: `"${query}" से मिलते-जुलते कार्यक्रम:\n\n${formatEventList(searchEvents)}`
       };
     }
-    console.log('\x1b[33m%s\x1b[0m', `⚠️ No events found matching "${query}"`);
+    
     return {
       type: 'search',
       query,
@@ -810,21 +790,36 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
 
   } catch (error) {
     console.error('\x1b[31m%s\x1b[0m', '❌ Error in queryEvents:', error);
-    console.error('\x1b[31m%s\x1b[0m', 'Stack trace:', error.stack);
     return { error: 'कार्यक्रम खोजने में त्रुटि। कृपया पुनः प्रयास करें।' };
   }
 }
 
-function parseDate(dateString) {
-  if (!dateString) return new Date();
-
-  const parts = dateString.split('/');
-  if (parts.length === 3) {
-    return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-  }
-
-  return new Date();
+// Helper function to format event lists
+function formatEventList(events) {
+  return events.map((event, index) => {
+    return `${index + 1}. ${event.title} (${event.date.toLocaleDateString('en-IN')})` +
+      `${event.time ? `, ${event.time}` : ''}` +
+      `${event.address ? `, ${event.address}` : ''}`;
+  }).join('\n');
 }
+
+// Helper function to parse date strings
+function parseDate(dateString) {
+  const [day, month, year] = dateString.split('/');
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+module.exports = { queryEvents };
+// function parseDate(dateString) {
+//   if (!dateString) return new Date();
+
+//   const parts = dateString.split('/');
+//   if (parts.length === 3) {
+//     return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+//   }
+
+//   return new Date();
+// }
 
 function getMediaType(contentType) {
   if (contentType.startsWith('image/')) return 'image';
@@ -835,7 +830,7 @@ function getMediaType(contentType) {
 
 // Scheduled daily message at 6 AM
 function scheduleDailyNotifications() {
-  nodeCron.schedule('0 6 * * *', async () => {
+  nodeCron.schedule('31 8 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -868,6 +863,53 @@ function scheduleDailyNotifications() {
   });
 }
 
+// Scheduled Remider before one hour of each event
+function scheduleEventReminders() {
+  // Run every minute to check for events happening in exactly 1 hour
+  nodeCron.schedule('* * * * *', async () => {
+    try {
+      const now = new Date();
+      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // Exactly 1 hour from now
+
+      // Find events happening exactly 1 hour from now that haven't had reminders sent
+      const events = await Event.find({
+        date: { 
+          $gte: new Date(oneHourFromNow.getTime() - 60000), // 1 minute before target
+          $lte: oneHourFromNow // 1 minute after target
+        },
+        reminderSent: false,
+        status: 'confirmed'
+      });
+
+      // Get admin phone number from environment variables
+      const ADMIN_PHONE = process.env.ADMIN_PHONE_NUMBER;
+      if (!ADMIN_PHONE) {
+        throw new Error('ADMIN_PHONE_NUMBER is not set in environment variables');
+      }
+
+      for (const event of events) {
+        const reminderMessage = `🔔 कार्यक्रम की याद दिलाना (1 घंटे में):\n\n` +
+          `कार्यक्रम: ${event.title}\n` +
+          `तारीख: ${event.date.toLocaleDateString('en-IN')}\n` +
+          `समय: ${event.time || 'निर्धारित नहीं'}\n` +
+          `स्थान: ${event.address || 'निर्धारित नहीं'}\n\n` +
+          `कृपया समय पर पहुंचें।`;
+
+        // Send reminder only to admin
+        await sendWhatsAppMessage(ADMIN_PHONE, reminderMessage);
+
+        // Mark reminder as sent
+        await Event.findByIdAndUpdate(event._id, { reminderSent: true });
+        console.log(`Sent reminder for event: ${event.title} (${event._id}) to admin`);
+      }
+    } catch (error) {
+      console.error('Error in event reminder:', error.message);
+    }
+  }, {
+    scheduled: true,
+    timezone: "Asia/Kolkata"
+  });
+}
 async function sendWhatsAppMessage(to, body, quickReplies = null) {
   try {
     if (!process.env.TWILIO_WHATSAPP_NUMBER) {
@@ -898,49 +940,7 @@ async function sendWhatsAppMessage(to, body, quickReplies = null) {
   }
 }
 
-// Add this function after the scheduleDailyNotifications function
-function scheduleEventReminders() {
-  // Run every hour to check for upcoming events
-  nodeCron.schedule('0 * * * *', async () => {
-    try {
-      const now = new Date();
-      const events = await Event.find({
-        date: { $gt: now },
-        reminderSent: false,
-        status: 'confirmed'
-      });
 
-      for (const event of events) {
-        const eventTime = new Date(event.date);
-        const hoursUntilEvent = (eventTime - now) / (1000 * 60 * 60);
-
-        // If event is within reminder time (default 24 hours)
-        if (hoursUntilEvent <= event.reminderTime && hoursUntilEvent > 0) {
-          const users = await User.find();
-          const reminderMessage = `🔔 कार्यक्रम की याद दिलाना:\n\n` +
-            `कार्यक्रम: ${event.title}\n` +
-            `तारीख: ${event.date.toLocaleDateString('en-IN')}\n` +
-            `समय: ${event.time || 'निर्धारित नहीं'}\n` +
-            `स्थान: ${event.address || 'निर्धारित नहीं'}\n\n` +
-            `कृपया समय पर पहुंचें।`;
-
-          // Send reminder to all users
-          for (const user of users) {
-            await sendWhatsAppMessage(user.phone, reminderMessage);
-          }
-
-          // Mark reminder as sent
-          await Event.findByIdAndUpdate(event._id, { reminderSent: true });
-        }
-      }
-    } catch (error) {
-      console.error('Error in event reminder:', error);
-    }
-  }, {
-    scheduled: true,
-    timezone: "Asia/Kolkata"
-  });
-}
 
 // Template CRUD Operations
 app.post('/api/templates', async (req, res) => {
