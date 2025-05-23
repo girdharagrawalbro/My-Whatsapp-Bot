@@ -135,8 +135,8 @@ export default function Messages () {
   }
   const filteredMessages = messages.filter(msg => {
     const matchesSearch =
-      msg.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      msg.user?.phone?.includes(searchTerm)
+      (msg.text && msg.text.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (msg.user?.phone && msg.user.phone.includes(searchTerm))
 
     const matchesStatus =
       filters.status === 'all' || msg.status === filters.status

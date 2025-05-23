@@ -31,6 +31,8 @@ export default function ManageUsers () {
     phone: '',
     name: ''
   })
+  // Add this state for messages, default to empty array
+  const [messages, setMessages] = useState<any[]>([])
 
   // Fetch data
   useEffect(() => {
@@ -45,14 +47,23 @@ export default function ManageUsers () {
         const usersData = await usersRes.json()
         setUsers(usersData)
 
-        // Fetch messages
-        const messagesRes = await fetch(
-          'http://localhost:3000/api/messages'
-        )
-        const messagesData = await messagesRes.json()
-        setMessages(messagesData)
+        // Try to fetch messages, but don't fail if it errors
+        try {
+          const messagesRes = await fetch(
+            'http://localhost:3000/api/messages'
+          )
+          if (messagesRes.ok) {
+            const messagesData = await messagesRes.json()
+            setMessages(messagesData)
+          } else {
+            setMessages([])
+          }
+        } catch (err) {
+          setMessages([])
+        }
+        setError(null)
       } catch (err) {
-        setError('Failed to load data')
+        setError('Failed to load users')
         console.error(err)
       } finally {
         setLoading(false)
@@ -73,14 +84,23 @@ export default function ManageUsers () {
       const usersData = await usersRes.json()
       setUsers(usersData)
 
-      // Fetch messages
-      const messagesRes = await fetch(
-        'http://localhost:3000/api/messages'
-      )
-      const messagesData = await messagesRes.json()
-      setMessages(messagesData)
+      // Try to fetch messages, but don't fail if it errors
+      try {
+        const messagesRes = await fetch(
+          'http://localhost:3000/api/messages'
+        )
+        if (messagesRes.ok) {
+          const messagesData = await messagesRes.json()
+          setMessages(messagesData)
+        } else {
+          setMessages([])
+        }
+      } catch (err) {
+        setMessages([])
+      }
+      setError(null)
     } catch (err) {
-      setError('Failed to load data')
+      setError('Failed to load users')
       console.error(err)
     } finally {
       setLoading(false)

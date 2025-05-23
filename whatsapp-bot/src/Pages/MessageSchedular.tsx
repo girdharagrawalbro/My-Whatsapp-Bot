@@ -11,6 +11,7 @@ import {
   FiUsers
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
+import { FiClock } from 'react-icons/fi'
 
 interface User {
   _id: string
@@ -29,12 +30,21 @@ interface ScheduledMessage {
   campaign: string
 }
 
+interface MessageTemplate {
+  _id: string
+  name: string
+  content: string
+  isActive: boolean
+}
+
 export default function MessageScheduler () {
   const [message, setMessage] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [scheduledMessages, setScheduledMessages] = useState<
     ScheduledMessage[]
   >([])
+  const [templates, setTemplates] = useState<MessageTemplate[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -48,6 +58,74 @@ export default function MessageScheduler () {
   const [audience, setAudience] = useState<'all' | 'supporters' | 'new'>('all')
   const [campaign, setCampaign] = useState('')
   const itemsPerPage = 10
+
+  // Add this helper function to properly format the datetime for scheduling
+// This will ensure 24-hour format is correctly handled
+const formatScheduledTime = (dateTimeString: string): string => {
+  if (!dateTimeString) return '';
+  
+  // Create a date object from the input
+  const dateObj = new Date(dateTimeString);
+  
+  // Check if it's a valid date
+  if (isNaN(dateObj.getTime())) return dateTimeString;
+  
+  // Format to ISO string and return
+  return dateObj.toISOString();
+};
+
+// Update the handleScheduleMessage function to use the new formatter
+const handleScheduleMessage = async () => {
+  if (!message.trim()) {
+    toast.error('Please enter a message');
+    return;
+  }
+
+  if (!scheduledTime) {
+    toast.error('Please select a scheduled time');
+    return;
+  }
+
+  // Format the scheduled time properly
+  const formattedScheduledTime = formatScheduledTime(scheduledTime);
+
+  setLoading(prev => ({ ...prev, sending: true }));
+
+  try {
+    const response = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        users: selectedUsers,
+        // Use the formatted time instead of raw input
+        scheduledTime: formattedScheduledTime,
+        campaign,
+        audience,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      toast.success(data.message || 'Message scheduled successfully');
+      setMessage('');
+      setScheduledTime('');
+      setSelectedUsers([]);
+      setCampaign('');
+      fetchScheduledMessages();
+    } else {
+      toast.error(data.error || 'Failed to schedule message');
+    }
+  } catch (error) {
+    console.error('Error scheduling message:', error);
+    toast.error('Failed to schedule message');
+  } finally {
+    setLoading(prev => ({ ...prev, sending: false }));
+  }
+};
 
   // Fetch users from API with filters
   const fetchUsers = async () => {
@@ -102,6 +180,37 @@ export default function MessageScheduler () {
   useEffect(() => {
     fetchScheduledMessages()
   }, [])
+
+  // Fetch templates from API
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/templates')
+        const data = await res.json()
+        setTemplates(data.templates || [])
+      } catch (err) {
+        toast.error('Failed to load templates')
+      }
+    }
+    fetchTemplates()
+  }, [])
+
+  // When a template is selected, fill the message box
+  useEffect(() => {
+    if (selectedTemplateId) {
+      const template = templates.find(t => t._id === selectedTemplateId)
+      if (template) setMessage(template.content)
+    }
+  }, [selectedTemplateId, templates])
+
+  // Add this function to set the current date/time in the input
+  const setNow = () => {
+    const now = new Date()
+    // Format as yyyy-MM-ddTHH:mm for datetime-local input
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    const formatted = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+    setScheduledTime(formatted)
+  }
 
   const handleUserToggle = (phone: string) => {
     setSelectedUsers(prev =>
@@ -190,11 +299,32 @@ export default function MessageScheduler () {
         </h2>
 
         <div className='p-6 space-y-4'>
+          {/* Template Selector */}
+          <div>
+            <label className='block mb-2 font-medium'>Select Template</label>
+            <select
+              value={selectedTemplateId}
+              onChange={e => setSelectedTemplateId(e.target.value)}
+              className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+            >
+              <option value=''>-- Choose a template --</option>
+              {templates.map(template => (
+                <option key={template._id} value={template._id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Message Content */}
           <div>
             <label className='block mb-2 font-medium'>Message Content</label>
             <textarea
               value={message}
-              onChange={e => setMessage(e.target.value)}
+              onChange={e => {
+                setMessage(e.target.value)
+                setSelectedTemplateId('') // Clear template selection if message is edited
+              }}
               placeholder='Type your WhatsApp message here...'
               className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
               rows={4}
@@ -206,13 +336,23 @@ export default function MessageScheduler () {
               <label className='block mb-2 font-medium'>
                 Schedule Time (Leave empty for immediate)
               </label>
-              <input
-                type='datetime-local'
-                value={scheduledTime}
-                onChange={e => setScheduledTime(e.target.value)}
-                className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                min={new Date().toISOString().slice(0, 16)}
-              />
+              <div className="flex gap-2">
+                <input
+                  type='datetime-local'
+                  value={scheduledTime}
+                  onChange={e => setScheduledTime(e.target.value)}
+                  className='w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+                <button
+                  type="button"
+                  onClick={setNow}
+                  className="flex items-center px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-blue-100"
+                  title="Set to Now"
+                >
+                  <FiClock className="mr-1" /> Now
+                </button>
+              </div>
             </div>
 
             <div>
