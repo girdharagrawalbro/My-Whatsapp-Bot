@@ -1263,7 +1263,7 @@ app.post('/webhook', async (req, res) => {
 
         const confirmMsg = `✅ आपकी कार्यक्रम सेव किए गए हैं!\n`;
 
-        // await sendWhatsAppMessage(from, confirmMsg);
+        await sendWhatsAppMessage(from, confirmMsg);
 
         twiml.message(`आपकी File को सफलतापूर्वक प्रोसेस किया गया है!`);
       } else if (text.trim()) {
