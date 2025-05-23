@@ -1362,7 +1362,6 @@ app.post('/webhook', async (req, res) => {
       } else if (text.trim()) {
         console.log(text);
         const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
-        console.log("After fucntion call")
         if (result.error) {
           twiml.message(result.error);
         }
@@ -1523,7 +1522,7 @@ app.get('/api/scheduled-messages', async (req, res) => {
 });
 app.get('/api/cron-job/', async (req, res) =>{
   try{
-    const messag = "Hello from Whataapp Bot Backend";
+    const message = "Hello from My Whataapp Bot Backend";
     res.json(message);
   }
   catch(error){
@@ -1547,12 +1546,7 @@ async function getNextEventIndex() {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('\x1b[35m%s\x1b[0m', '🚀 Server Information:');
   console.log('\x1b[36m%s\x1b[0m', `📡 Server running on port ${PORT}`);
-  console.log('\x1b[32m%s\x1b[0m', '🤖 Ready to process events with Gemini AI and MongoDB');
-  console.log('\x1b[33m%s\x1b[0m', '⏰ Scheduled tasks initialized:');
-  console.log('\x1b[33m%s\x1b[0m', '  • Daily notifications at 6 AM');
-  console.log('\x1b[33m%s\x1b[0m', '  • Event reminders every hour');
   console.log('\x1b[32m%s\x1b[0m', '✓ All systems operational');
   scheduleDailyNotifications();
   scheduleEventReminders();
