@@ -316,21 +316,22 @@ function getMimeType(mediaType) {
 // Format the event list as required for the client
 function formatEventList(events, withIndex = true) {
   let response = '';
-  events.forEach((event) => {
-    if (withIndex) {
-      response += `#${event.eventIndex}. `;
-    }
-    response += `कार्यक्रम: ${event.title}\n`;
-    response += `तारीख: ${event.date.toLocaleDateString('en-IN')}\n`;
-    if (event.time) response += `समय: ${event.time}\n`;
-    if (event.address) response += `स्थान: ${event.address}\n`;
-    if (event.organizer) response += `आयोजक: ${event.organizer}\n`;
-    if (event.contactPhone) response += `संपर्क: ${event.contactPhone || 'नहीं दिया गया'}\n`;
-    if (event.mediaUrls) response += `link: ${event.mediaUrls}\n`;
-    response += '\n';
+  events.forEach((event, index) => {
+    const eventLine = [
+      withIndex ? `${index + 1}.` : null,
+      `${event.title} (${new Date(event.date).toLocaleDateString('en-IN')})`,
+      event.time,
+      event.address,
+      event.organizer ? `आयोजक: ${event.organizer}` : null,
+      event.contactPhone ? `संपर्क: ${event.contactPhone}` : null,
+      event.mediaUrls ? `Link: ${event.mediaUrls}` : null,
+    ].filter(Boolean).join(', ');
+    
+    response += eventLine + '\n';
   });
   return response;
 }
+
 
 // Process query with AI to get intended Keyword according to user input
 async function classifyQueryWithAI(query) {

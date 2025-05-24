@@ -72,60 +72,7 @@ const formatScheduledTime = (dateTimeString: string): string => {
   
   // Format to ISO string and return
   return dateObj.toISOString();
-};
-
-// Update the handleScheduleMessage function to use the new formatter
-const handleScheduleMessage = async () => {
-  if (!message.trim()) {
-    toast.error('Please enter a message');
-    return;
-  }
-
-  if (!scheduledTime) {
-    toast.error('Please select a scheduled time');
-    return;
-  }
-
-  // Format the scheduled time properly
-  const formattedScheduledTime = formatScheduledTime(scheduledTime);
-
-  setLoading(prev => ({ ...prev, sending: true }));
-
-  try {
-    const response = await fetch('/api/messages/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message,
-        users: selectedUsers,
-        // Use the formatted time instead of raw input
-        scheduledTime: formattedScheduledTime,
-        campaign,
-        audience,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      toast.success(data.message || 'Message scheduled successfully');
-      setMessage('');
-      setScheduledTime('');
-      setSelectedUsers([]);
-      setCampaign('');
-      fetchScheduledMessages();
-    } else {
-      toast.error(data.error || 'Failed to schedule message');
-    }
-  } catch (error) {
-    console.error('Error scheduling message:', error);
-    toast.error('Failed to schedule message');
-  } finally {
-    setLoading(prev => ({ ...prev, sending: false }));
-  }
-};
+};s
 
   // Fetch users from API with filters
   const fetchUsers = async () => {
