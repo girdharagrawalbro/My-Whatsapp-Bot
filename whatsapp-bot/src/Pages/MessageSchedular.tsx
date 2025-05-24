@@ -60,19 +60,6 @@ export default function MessageScheduler () {
   const itemsPerPage = 10
 
   // Add this helper function to properly format the datetime for scheduling
-// This will ensure 24-hour format is correctly handled
-const formatScheduledTime = (dateTimeString: string): string => {
-  if (!dateTimeString) return '';
-  
-  // Create a date object from the input
-  const dateObj = new Date(dateTimeString);
-  
-  // Check if it's a valid date
-  if (isNaN(dateObj.getTime())) return dateTimeString;
-  
-  // Format to ISO string and return
-  return dateObj.toISOString();
-};s
 
   // Fetch users from API with filters
   const fetchUsers = async () => {
