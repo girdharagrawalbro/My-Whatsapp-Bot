@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react'
+
+import * as XLSX from 'xlsx';
+
+
 import {
   FiRefreshCw,
   FiSearch,
@@ -14,14 +18,15 @@ interface Event {
   _id: string
   title: string
   date: string
+  time: string
   description: string
   organizer?: string
-  contactPhone?:number
+  contactPhone?: string
   address?: string
-  mediaUrls?: string 
+  mediaUrls?: string
 }
 
-export default function ManageEvents () {
+export default function ManageEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,9 +37,9 @@ export default function ManageEvents () {
   const [showEditForm, setShowEditForm] = useState(false)
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null)
   const [filters, setFilters] = useState({
-      date: '',
-    })
-  
+    date: '',
+  })
+
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -147,7 +152,7 @@ export default function ManageEvents () {
     setShowEditForm(true)
   }
 
-    const applyFilters = (newFilters: Partial<typeof filters>) => {
+  const applyFilters = (newFilters: Partial<typeof filters>) => {
     setFilters({ ...filters, ...newFilters })
     setCurrentPage(1)
   }
@@ -161,30 +166,66 @@ export default function ManageEvents () {
   // Filter and pagination logic
   const filteredEvents = events.filter(
     event => {
-       const matchesSearch =
-      (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (event.address && event.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (event.organizer && event.organizer.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSearch =
+        (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (event.address && event.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (event.organizer && event.organizer.toLowerCase().includes(searchTerm.toLowerCase()))
 
-       const matchesDate =
-      !filters.date ||
-      new Date(event.date).toDateString() ===
+      const matchesDate =
+        !filters.date ||
+        new Date(event.date).toDateString() ===
         new Date(filters.date).toDateString()
 
-    return matchesSearch && matchesDate
-})
+      return matchesSearch && matchesDate
+    })
 
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentEvents = filteredEvents.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
 
+  const exportPDF = () => {
+    const printContent = document.getElementById('print-section')?.innerHTML;
+    const originalContent = document.body.innerHTML;
+
+    if (printContent) {
+      document.body.innerHTML = printContent;
+      window.print();
+      document.body.innerHTML = originalContent;
+      window.location.reload(); // reload to restore React app
+    }
+  }
+
+
+  // Excel Export handler
+  const exportExcel = () => {
+    const worksheetData = [
+      ["S.No.", "Name", "Description", "Date & Time", "Organizer", "Address", "Contact", "Link"],
+      ...currentEvents.map((event, index) => [
+        indexOfFirstItem + index + 1,
+        event.title,
+        event.description,
+        event.date ? `${new Date(event.date).toLocaleDateString()} ${event.time}` : '',
+        event.organizer,
+        event.address,
+        event.contactPhone,
+        event.mediaUrls || ''
+      ])
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Events");
+
+    XLSX.writeFile(workbook, "events.xlsx");
+  };
+
   return (
-    <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden m-6'>
+    <div className='bg-white  overflow-hidden'>
       {/* Add Event Modal */}
       {showAddForm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+          <div className='bg-white rounded-lg p-2 w-full max-w-md'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Add New Event</h3>
               <button onClick={() => setShowAddForm(false)}>
@@ -228,7 +269,7 @@ export default function ManageEvents () {
                   />
                 </div>
               </div>
-              <div className='mt-6 flex justify-end space-x-3'>
+              <div className='mt-12 flex justify-end space-x-3'>
                 <button
                   type='button'
                   onClick={() => setShowAddForm(false)}
@@ -251,7 +292,7 @@ export default function ManageEvents () {
       {/* Edit Event Modal */}
       {showEditForm && currentEvent && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+          <div className='bg-white rounded-lg p-2 w-full max-w-md'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Edit Event</h3>
               <button onClick={() => setShowEditForm(false)}>
@@ -295,7 +336,7 @@ export default function ManageEvents () {
                   />
                 </div>
               </div>
-              <div className='mt-6 flex justify-end space-x-3'>
+              <div className='mt-12 flex justify-end space-x-3'>
                 <button
                   type='button'
                   onClick={() => setShowEditForm(false)}
@@ -331,7 +372,7 @@ export default function ManageEvents () {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-           <div>
+          <div>
             <input
               type='date'
               className='w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
@@ -339,7 +380,7 @@ export default function ManageEvents () {
               value={filters.date}
             />
           </div>
-           <div className='flex items-end'>
+          <div className='flex items-end'>
             <button
               className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors'
               onClick={clearFilters}
@@ -362,7 +403,20 @@ export default function ManageEvents () {
             <FiPlus />
             <span>Add Event</span>
           </button>
+          <button
+            onClick={exportPDF}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Export PDF
+          </button>
+          <button
+            onClick={exportExcel}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Export Excel
+          </button>
         </div>
+
       </div>
 
       {error ? (
@@ -382,36 +436,36 @@ export default function ManageEvents () {
         </div>
       ) : (
         <>
-          <div className='overflow-x-auto'>
+          <div className='overflow-x-auto' id="print-section" >
             <table className='min-w-full divide-y divide-gray-200'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     S.No.
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Name
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Description
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Date & Time
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Organizer
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Address
                   </th>
 
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Contact
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Link
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Action
                   </th>
                 </tr>
@@ -420,53 +474,103 @@ export default function ManageEvents () {
                 {currentEvents.length > 0 ? (
                   currentEvents.map((event, index) => (
                     <tr key={event._id} className='hover:bg-gray-50'>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                      <td className='px-2 py-4 whitespace-nowrap text-sm text-gray-500 text-center'>
                         {indexOfFirstItem + index + 1}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div className='truncate'>{event.title}</div>
-                          {event.title && event.title.length > 10 && (
-                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
-                              <div className='whitespace-normal break-words'>
-                                {event.title}
-                              </div>
+
+                      <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
+                        <div className="truncate max-w-[10rem]">{event.title}</div>
+                        {event.title && event.title.length > 10 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.title}
                             </div>
-                          )}
+                          </div>
+                        )}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div className='truncate'>{event.description}</div>
-                          {event.description && event.description.length > 10 && (
-                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
-                              <div className='whitespace-normal break-words'>
-                                {event.description}
-                              </div>
+                      <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
+                        <div className="truncate max-w-[10rem]">{event.description}</div>
+                        {event.description && event.description.length > 10 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.description}
                             </div>
-                          )}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                        {event.date ? new Date(event.date).toLocaleString() : ''}
-                      </td>
-                                            <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                           <div className='truncate'>{event.organizer}</div>
-                          {event.organizer && event.organizer.length > 10 && (
-                            <div className='absolute z-10 invisible group-hover:visible w-2 p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100'>
-                              <div className='whitespace-normal break-words'>
-                                {event.organizer}
-                              </div>
-                            </div>
-                          )}
+                          </div>
+                        )}
                       </td>
 
-                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                        {event.address || 'N/A'}
+                      <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {event.date ? (
+                          <div className="flex flex-col">
+                            <span>{new Date(event.date).toLocaleDateString()}</span>
+                            <span className="text-xs text-gray-400">{event.time}</span>
+                          </div>
+                        ) : (
+                          ''
+                        )}
+                      </td><td className="px-2 py-4 whitespace-nowrap w-28 relative group">
+                        <div className="truncate max-w-[10rem]">{event.organizer}</div>
+                        {event.organizer && event.organizer.length > 20 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.organizer}
+                            </div>
+                          </div>
+                        )}
                       </td>
-                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                        {event.contactPhone || 'N/A'}
+
+                      <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
+                        <div className="truncate max-w-[10rem]">{event.address}</div>
+                        {event.address && event.address.length > 20 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.address}
+                            </div>
+                          </div>
+                        )}
                       </td>
-                      <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                        {event.mediaUrls || 'N/A'}
+
+                      <td className="px-2 py-4 text-sm text-gray-500 w-32 relative group">
+                        {event.contactPhone ? (
+                          <div className="flex flex-col truncate max-w-[8rem]">
+                            {event.contactPhone.split(',').map((phone, idx) => (
+                              <span key={idx} className="truncate">
+                                {phone.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          'N/A'
+                        )}
+
+                        {event.contactPhone && event.contactPhone.length > 15 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.contactPhone.split(',').map((phone, idx) => (
+                                <div key={idx}>{phone.trim()}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+
+                      <td className="px-2 py-4 text-sm text-gray-500 w-24 truncate">
+                        <div className="flex items-center gap-2">
+                          {event.mediaUrls && (
+                            <a
+                              href={event.mediaUrls}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-700"
+                              title="Open link in new tab"
+                            >
+                              📌
+                            </a>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className='px-2 py-4 whitespace-nowrap text-sm font-medium'>
                         <div className='flex space-x-2'>
                           <button
                             onClick={() => openEditForm(event)}
@@ -488,7 +592,7 @@ export default function ManageEvents () {
                   <tr>
                     <td
                       colSpan={5}
-                      className='px-6 py-4 text-center text-sm text-gray-500'
+                      className='px-2 py-4 text-center text-sm text-gray-500'
                     >
                       No events found
                     </td>
@@ -500,7 +604,7 @@ export default function ManageEvents () {
 
           {/* Pagination */}
           {filteredEvents.length > itemsPerPage && (
-            <div className='px-6 py-4 border-t border-gray-200 flex items-center justify-between'>
+            <div className='px-12 py-4 border-t border-gray-200 flex items-center justify-between'>
               <div className='text-sm text-gray-700'>
                 Showing{' '}
                 <span className='font-medium'>{indexOfFirstItem + 1}</span> to{' '}

@@ -8,6 +8,7 @@ import ManageEvents from './Pages/ManageEvents'
 import ManageUsers from './Pages/ManageUsers'
 import Settings from './Pages/Settings'
 import Sidebar from './components/Sidebar'
+import NotFound from './NotFound';
 import TemplateManagement from './Pages/TemplateManagement'
 import Login from './Pages/Login'
 import { Toaster } from 'react-hot-toast'
@@ -18,7 +19,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
-function App () {
+function App() {
   return (
     <AuthProvider>
       <Router>
@@ -26,6 +27,7 @@ function App () {
           <Sidebar />
           <div className='ml-64 flex-1 w-full h-full'>
             <Routes>
+              <Route path="*" element={<NotFound />} />
               <Route path='/login' element={<Login />} />
               <Route path='/' element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path='/messageschedular' element={<ProtectedRoute><MessageSchedular /></ProtectedRoute>} />
