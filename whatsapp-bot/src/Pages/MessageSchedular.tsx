@@ -132,7 +132,7 @@ const handleScheduleMessage = async () => {
     try {
       setLoading(prev => ({ ...prev, users: true }))
       const res = await fetch(
-        `http://localhost:3000/api/users`
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/users`
       )
       const data = await res.json()
       setUsers(data)
@@ -149,7 +149,7 @@ const handleScheduleMessage = async () => {
     try {
       setLoading(prev => ({ ...prev, messages: true }))
       const res = await fetch(
-        'http://localhost:3000/api/scheduled-messages'
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages'
       )
       const data = await res.json()
 
@@ -185,7 +185,7 @@ const handleScheduleMessage = async () => {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/templates')
+        const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/templates')
         const data = await res.json()
         setTemplates(data.templates || [])
       } catch (err) {
@@ -238,7 +238,7 @@ const handleScheduleMessage = async () => {
     try {
       setLoading(prev => ({ ...prev, sending: true }))
       const res = await fetch(
-        'http://localhost:3000/api/messages/send',
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages/send',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

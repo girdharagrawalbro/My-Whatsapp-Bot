@@ -40,7 +40,7 @@ export default function ManageUsers () {
 
         // Fetch users
         const usersRes = await fetch(
-          'http://localhost:3000/api/users'
+          'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
         )
         const usersData = await usersRes.json()
         setUsers(usersData)
@@ -64,7 +64,7 @@ export default function ManageUsers () {
 
       // Fetch users
       const usersRes = await fetch(
-        'http://localhost:3000/api/users'
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
       )
       const usersData = await usersRes.json()
       setUsers(usersData)
@@ -82,7 +82,7 @@ export default function ManageUsers () {
     e.preventDefault()
     try {
       const res = await fetch(
-        'http://localhost:3000/api/users',
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/users',
         {
           method: 'POST',
           headers: {
@@ -111,7 +111,7 @@ export default function ManageUsers () {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/api/users/${currentUser._id}`,
+        `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${currentUser._id}`,
         {
           method: 'PUT',
           headers: {
@@ -138,7 +138,7 @@ export default function ManageUsers () {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         const res = await fetch(
-          `http://localhost:3000/api/users/${id}`,
+          `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${id}`,
           {
             method: 'DELETE'
           }

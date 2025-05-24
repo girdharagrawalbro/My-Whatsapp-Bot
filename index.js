@@ -325,7 +325,7 @@ function formatEventList(events, withIndex = true) {
     if (event.time) response += `समय: ${event.time}\n`;
     if (event.address) response += `स्थान: ${event.address}\n`;
     if (event.organizer) response += `आयोजक: ${event.organizer}\n`;
-    if (event.contactPhone) response += `संपर्क: ${event.contactPhone}\n`;
+    if (event.contactPhone) response += `संपर्क: ${event.contactPhone || 'नहीं दिया गया'}\n`;
     if (event.mediaUrls) response += `link: ${event.mediaUrls}\n`;
     response += '\n';
   });
@@ -722,15 +722,6 @@ async function queryEvents(query, phone, isAdmin = false, followUpContext = null
     console.error('\x1b[31m%s\x1b[0m', '❌ Error in queryEvents:', error);
     return { error: 'कार्यक्रम खोजने में त्रुटि। कृपया पुनः प्रयास करें।' };
   }
-}
-
-// Helper function to format event lists
-function formatEventList(events) {
-  return events.map((event, index) => {
-    return `${index + 1}. ${event.title} (${event.date.toLocaleDateString('en-IN')})` +
-      `${event.time ? `, ${event.time}` : ''}` +
-      `${event.address ? `, ${event.address}` : ''}`;
-  }).join('\n');
 }
 
 // Helper function to parse date strings
@@ -1292,10 +1283,8 @@ app.post('/webhook', async (req, res) => {
             response += `\n\nक्रमांक भेजकर चुनें या "रद्द" भेजें।`;
           }
 
-
           // Create message with the formatted event list
           twiml.message(response);
-
           // Store follow-up context if present
           if (result.followUpContext) {
             req.session = req.session || {};
@@ -1448,7 +1437,7 @@ app.post('/api/scheduled-messages/visibility', async (req, res) => {
   }
 })
 
-app.get('/api/cron-job/', async (req, res) => {
+app.get('/api/cron-job', async (req, res) => {
   try {
     const message = "Hello from My Whataapp Bot Backend";
     res.json(message);
