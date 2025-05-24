@@ -785,26 +785,6 @@ function scheduleDailyNotifications() {
   });
 }
 
-// Scheduled Remider before one hour of each event
-async function scheduleEventReminders() {
-  const now = new Date();
-  const nextHourMark = new Date(now.getTime() + 60 * 60 * 1000);
-
-  // Find the next event needing a reminder
-  const nextEvent = await Event.findOne({
-    date: { $gte: nextHourMark },
-    reminderSent: false,
-    status: 'confirmed'
-  }).sort({ date: 1 });
-
-  if (nextEvent) {
-    const delay = nextEvent.date.getTime() - now.getTime() - 60 * 60 * 1000;
-    setTimeout(async () => {
-      await sendReminder(nextEvent);
-      scheduleEventReminders(); // Schedule the next one
-    }, delay);
-  }
-}
 
 async function sendWhatsAppMessage(to, body, quickReplies = null) {
   try {
@@ -836,7 +816,41 @@ async function sendWhatsAppMessage(to, body, quickReplies = null) {
   }
 }
 
+async function sendReminder(event) {
+  try {
+    const ADMIN_PHONE = process.env.ADMIN_PHONE_NUMBER;
+    if (!ADMIN_PHONE) throw new Error('Admin phone not configured');
 
+    const reminderMessage = `🔔 Reminder: \n\n` + `${formatEventList(event)}\n\n`;
+    await sendWhatsAppMessage(ADMIN_PHONE, reminderMessage);
+    await Event.findByIdAndUpdate(event._id, { reminderSent: true });
+    
+    console.log(`[${new Date().toISOString()}] Sent reminder for: ${event._id}`);
+  } catch (error) {
+    console.error(`[ERROR] Failed to send reminder for ${event._id}:`, error.message);
+  }
+}
+
+// Scheduled Remider before one hour of each event
+async function scheduleEventReminders() {
+  const now = new Date();
+  const nextHourMark = new Date(now.getTime() + 60 * 60 * 1000);
+
+  // Find the next event needing a reminder
+  const nextEvent = await Event.findOne({
+    date: { $gte: nextHourMark },
+    reminderSent: false,
+    status: 'confirmed'
+  }).sort({ date: 1 });
+
+  if (nextEvent) {
+    const delay = nextEvent.date.getTime() - now.getTime() - 60 * 60 * 1000;
+    setTimeout(async () => {
+      await sendReminder(nextEvent);
+      scheduleEventReminders(); // Schedule the next one
+    }, delay);
+  }
+}
 
 // Template CRUD Operations
 app.post('/api/templates', async (req, res) => {
@@ -1418,6 +1432,7 @@ app.get('/api/scheduled-messages', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch scheduled messages' });
   }
 });
+
 app.post('/api/scheduled-messages/visibility', async (req, res) => {
   try {
     const { ids, hidden } = req.body
