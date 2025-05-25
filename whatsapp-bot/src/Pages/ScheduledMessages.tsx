@@ -26,7 +26,7 @@ interface ScheduledMessage {
   }[]
 }
 
-export default function ScheduledMessages () {
+export default function ScheduledMessages() {
   const [scheduledMessages, setScheduledMessages] = useState<
     ScheduledMessage[]
   >([])
@@ -152,7 +152,7 @@ export default function ScheduledMessages () {
     const matchesDate =
       !filters.date ||
       new Date(msg.scheduledTime).toDateString() ===
-        new Date(filters.date).toDateString()
+      new Date(filters.date).toDateString()
 
     return matchesSearch && matchesStatus && matchesDate
   })
@@ -167,7 +167,7 @@ export default function ScheduledMessages () {
   const totalPages = Math.ceil(filteredMessages.length / itemsPerPage)
 
   return (
-    <div className='bg-white rounded-lg border border-gray-200 shadow-sm my-6 mx-4'>
+    <div className='bg-white'>
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <h2 className='text-xl font-semibold text-gray-800 flex items-center gap-2'>
           <FiCalendar />
@@ -187,32 +187,23 @@ export default function ScheduledMessages () {
             />
           </div>
 
-          <div className='flex items-center gap-2'>
-            <select
-              value={filters.status}
-              onChange={e => applyFilters({ status: e.target.value })}
-              className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
-            >
-              <option value='all'>All Statuses</option>
-              <option value='scheduled'>Scheduled</option>
-              <option value='sent'>Sent</option>
-              <option value='failed'>Failed</option>
-            </select>
+          <select
+            value={filters.status}
+            onChange={e => applyFilters({ status: e.target.value })}
+            className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+          >
+            <option value='all'>All Statuses</option>
+            <option value='scheduled'>Scheduled</option>
+            <option value='sent'>Sent</option>
+            <option value='failed'>Failed</option>
+          </select>
 
-            <input
-              type='date'
-              value={filters.date}
-              onChange={e => applyFilters({ date: e.target.value })}
-              className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
-            />
-
-            <button
-              onClick={clearFilters}
-              className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors'
-            >
-              Clear
-            </button>
-          </div>
+          <input
+            type='date'
+            value={filters.date}
+            onChange={e => applyFilters({ date: e.target.value })}
+            className='px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+          />
 
           <button
             className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
@@ -223,6 +214,12 @@ export default function ScheduledMessages () {
             <span>Refresh</span>
           </button>
 
+          <button
+            onClick={clearFilters}
+            className='px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors'
+          >
+            Clear
+          </button>
           {selectedMessages.length > 0 && (
             <div className='flex gap-2'>
               <button
@@ -317,9 +314,8 @@ export default function ScheduledMessages () {
                     currentMessages.map((msg, index) => (
                       <tr
                         key={msg._id}
-                        className={`hover:bg-gray-50 ${
-                          msg.hidden ? 'bg-gray-100' : ''
-                        }`}
+                        className={`hover:bg-gray-50 ${msg.hidden ? 'bg-gray-100' : ''
+                          }`}
                       >
                         <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                           <div className='flex items-center'>
@@ -371,13 +367,12 @@ export default function ScheduledMessages () {
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap'>
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              msg.status === 'sent'
-                                ? 'bg-green-100 text-green-800'
-                                : msg.status === 'scheduled'
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${msg.status === 'sent'
+                              ? 'bg-green-100 text-green-800'
+                              : msg.status === 'scheduled'
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-red-100 text-red-800'
-                            }`}
+                              }`}
                           >
                             {msg.status}
                           </span>

@@ -37,7 +37,7 @@ interface MessageTemplate {
   isActive: boolean
 }
 
-export default function MessageScheduler () {
+export default function MessageScheduler() {
   const [message, setMessage] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [scheduledMessages, setScheduledMessages] = useState<
@@ -121,7 +121,7 @@ export default function MessageScheduler () {
       try {
         const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/templates')
         const data = await res.json()
-        setTemplates(data.templates || [])
+        setTemplates(data || [])
       } catch (err) {
         toast.error('Failed to load templates')
       }
@@ -172,7 +172,7 @@ export default function MessageScheduler () {
     try {
       setLoading(prev => ({ ...prev, sending: true }))
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/messages/send',
+        'https://my-whatsapp-bot-6a9u.onrender.com/api/send',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -227,15 +227,15 @@ export default function MessageScheduler () {
   return (
     <div className='space-y-6'>
       {/* Message Composer Section */}
-      <div className='bg-white rounded-lg border border-gray-200 shadow-sm m-6'>
+      <div className='bg-white'>
         <h2 className='text-xl font-semibold p-4 border-b border-gray-200'>
           Schedule New Message
         </h2>
 
-        <div className='p-6 space-y-4'>
+        <div className='p-2 space-y-4'>
           {/* Template Selector */}
-          <div>
-            <label className='block mb-2 font-medium'>Select Template</label>
+          <div className=''>
+            <h2 className='block mb-2 font-medium'>Select Template</h2>
             <select
               value={selectedTemplateId}
               onChange={e => setSelectedTemplateId(e.target.value)}
@@ -270,7 +270,7 @@ export default function MessageScheduler () {
               <label className='block mb-2 font-medium'>
                 Schedule Time (Leave empty for immediate)
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <input
                   type='datetime-local'
                   value={scheduledTime}
@@ -306,7 +306,7 @@ export default function MessageScheduler () {
           <div>
             <div className='flex justify-between items-center mb-2'>
               <label className='block font-medium'>Select Recipients</label>
-              <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-3 flex-wrap'>
                 <select
                   value={audience}
                   onChange={e => setAudience(e.target.value as any)}
@@ -336,17 +336,16 @@ export default function MessageScheduler () {
               <button
                 onClick={handleSelectAll}
                 disabled={filteredRecipients.length === 0}
-                className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition ${
-                  selectedUsers.length === filteredRecipients.length &&
+                className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition ${selectedUsers.length === filteredRecipients.length &&
                   filteredRecipients.length > 0
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200'
-                }`}
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
               >
                 <FiCheckSquare />
                 <span>
                   {selectedUsers.length === filteredRecipients.length &&
-                  filteredRecipients.length > 0
+                    filteredRecipients.length > 0
                     ? 'Deselect All'
                     : 'Select All'}
                 </span>
@@ -364,18 +363,16 @@ export default function MessageScheduler () {
                     <div
                       key={user._id}
                       onClick={() => handleUserToggle(user.phone)}
-                      className={`p-3 border rounded-lg cursor-pointer transition flex items-center gap-2 ${
-                        selectedUsers.includes(user.phone)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                      className={`p-3 border rounded-lg cursor-pointer transition flex items-center gap-2 ${selectedUsers.includes(user.phone)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                        }`}
                     >
                       <div
-                        className={`p-1 rounded-full ${
-                          selectedUsers.includes(user.phone)
-                            ? 'text-blue-500'
-                            : 'text-gray-400'
-                        }`}
+                        className={`p-1 rounded-full ${selectedUsers.includes(user.phone)
+                          ? 'text-blue-500'
+                          : 'text-gray-400'
+                          }`}
                       >
                         <FiUser />
                       </div>
@@ -428,7 +425,7 @@ export default function MessageScheduler () {
       </div>
 
       {/* Scheduled Messages List Section */}
-      <div className='bg-white rounded-lg border border-gray-200 shadow-sm mx-6'>
+      <div className='bg-white '>
         <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
           <h2 className='text-xl font-semibold text-gray-800 flex items-center gap-2'>
             <FiCalendar />
@@ -534,13 +531,12 @@ export default function MessageScheduler () {
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap'>
                       <span
-                        className={`px-2 py-1 text-xs rounded-full font-medium ${
-                          msg.status === 'sent'
-                            ? 'bg-green-100 text-green-800'
-                            : msg.status === 'scheduled'
+                        className={`px-2 py-1 text-xs rounded-full font-medium ${msg.status === 'sent'
+                          ? 'bg-green-100 text-green-800'
+                          : msg.status === 'scheduled'
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-red-100 text-red-800'
-                        }`}
+                          }`}
                       >
                         {msg.status}
                       </span>

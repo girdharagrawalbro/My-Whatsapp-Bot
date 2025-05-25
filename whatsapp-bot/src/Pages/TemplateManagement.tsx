@@ -48,7 +48,7 @@ export default function TemplateManagement() {
       setLoadingTemplates(true)
       const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/templates')
       const data = await res.json()
-      setTemplates(data.templates || [])
+      setTemplates(data || [])
       setTemplateError(null)
     } catch (err) {
       setTemplateError('Failed to load templates')
@@ -119,7 +119,7 @@ export default function TemplateManagement() {
   }
 
   return (
-    <div className='bg-gray-100 min-h-screen p-6'>
+    <div className='bg-gray-100 min-h-screen'>
       {/* Template Add/Edit Modal */}
       {showAddTemplateForm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
@@ -187,7 +187,7 @@ export default function TemplateManagement() {
           <h2 className='text-xl font-bold text-gray-800 flex items-center gap-2'>
             <FiFileText /> Template Management
           </h2>
-          <div className='flex gap-3'>
+          <div className='flex gap-3 flex-wrap'>
             <button
               className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
               onClick={handleRefreshTemplates}
@@ -227,7 +227,7 @@ export default function TemplateManagement() {
           </div>
         </div>
       ) : (
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 px-3'>
           {templates.length > 0 ? (
             templates.map(template => (
               <div key={template._id} className='bg-white rounded-lg shadow-lg p-6 flex flex-col gap-2 border border-gray-300'>

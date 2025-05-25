@@ -193,13 +193,12 @@ export default function Dashboard() {
                         <div className='text-sm text-gray-500'>{event.address || 'Not specified'}</div>
                       </td>
                       <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          event.status === 'confirmed' 
-                            ? 'bg-green-100 text-green-800' 
-                            : event.status === 'pending' 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${event.status === 'confirmed'
+                          ? 'bg-green-100 text-green-800'
+                          : event.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                          }`}>
                           {event.status}
                         </span>
                       </td>

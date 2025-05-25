@@ -9,7 +9,7 @@ app.use(cors());
 
 const connectDB = require('./config/db');
 
-  // Connect DB
+// Connect DB
 connectDB();
 
 
@@ -24,16 +24,16 @@ const webhookRoutes = require('./routes/webhookRoutes');
 
 app.use(express.json());
 app.use('/api/templates', templateRoutes);
-app.use('/api', eventRoutes);
-app.use('/api', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api', messageRoutes);
 
 app.use('/', webhookRoutes);
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log('\x1b[36m%s\x1b[0m', `📡 Server running on port ${PORT}`);
-    console.log('\x1b[32m%s\x1b[0m', '✓ All systems operational');
-    scheduleDailyNotifications();
-scheduleEventReminders();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('\x1b[36m%s\x1b[0m', `📡 Server running on port ${PORT}`);
+  console.log('\x1b[32m%s\x1b[0m', '✓ All systems operational');
+  scheduleDailyNotifications();
+  scheduleEventReminders();
 
-  });
+});

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import Dashboard from './Pages/Dashboard'
 import MessageSchedular from './Pages/MessageSchedular'
@@ -22,10 +22,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 function App() {
   return (
     <AuthProvider>
-      <Router>
         <div className='flex'>
           <Sidebar />
-          <div className='ml-64 flex-1 w-full h-full'>
+          <div className='flex-1 w-full h-screen overflow-x-auto'>
             <Routes>
               <Route path="*" element={<NotFound />} />
               <Route path='/login' element={<Login />} />
@@ -40,7 +39,6 @@ function App() {
           </div>
           <Toaster position='top-center' reverseOrder={false} />
         </div>
-      </Router>
     </AuthProvider>
   )
 }

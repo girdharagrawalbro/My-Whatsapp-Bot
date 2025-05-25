@@ -7,7 +7,6 @@ const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH
 // POST /api/messages/send
 exports.sendMessage = async (req, res) => {
   const { message, users, scheduledTime, campaign, audience, templateId, templateVariables } = req.body;
-
   if (!message && !templateId) {
     return res.status(400).json({ error: 'या तो संदेश या टेम्पलेट आईडी आवश्यक है' });
   }
@@ -54,29 +53,17 @@ exports.sendMessage = async (req, res) => {
     const sendMessages = async () => {
       const results = [];
       let allSuccessful = true;
-      let targetUsers = [];
-
-      if (audience === 'all') {
-        targetUsers = await User.find();
-      } else if (audience === 'supporters') {
-        targetUsers = await User.find({ isSupporter: true });
-      } else if (audience === 'new') {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        targetUsers = await User.find({ lastInteraction: { $gte: thirtyDaysAgo } });
-      }
-
-      for (const user of targetUsers) {
+      for (const user of users) {
         try {
           if (user.optOut) {
-            results.push({ phone: user.phone, status: 'skipped', error: 'User has opted out' });
+            results.push({ phone: user, status: 'skipped', error: 'User has opted out' });
             continue;
           }
 
           await twilio.messages.create({
             body: finalMessage,
             from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-            to: `whatsapp:${user.phone}`
+            to: `whatsapp:${user}`
           });
 
           results.push({ phone: user.phone, status: 'sent' });

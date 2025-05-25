@@ -42,7 +42,7 @@ const Settings = () => {
       </div>
 
       {/* Profile Section */}
-      <div className="p-6">
+      <div className="p-2">
         <div className={`p-4 rounded-lg border bg-white shadow-sm border-gray-200`}>
           <div className="flex items-center space-x-4 mb-4">
             <div className="relative">
@@ -68,7 +68,7 @@ const Settings = () => {
       </div>
 
       {/* Settings Form */}
-      <div className="p-6 space-y-6">
+      <div className="p-2 space-y-6">
         <div className={`p-4 rounded-lg  border border-gray-200 shadow-lg space-y-4`}>
           <h2 className="font-semibold text-lg">Account</h2>
           

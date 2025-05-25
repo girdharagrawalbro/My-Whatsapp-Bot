@@ -5,8 +5,8 @@ const {
   updateMessageVisibility,
   runCronJob,
   sendMessage,
-getMessageStatus,
-cancelMessage
+  getMessageStatus,
+  cancelMessage
 } = require('../controllers/messageController');
 
 router.post('/send', sendMessage);

@@ -55,11 +55,11 @@ async function queryEvents(query, phone, isAdmin = false) {
 // Helpers:
 
 function formatSingleEvent(event) {
-  return `#  ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \n{event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
+  return `#  ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थायन {event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
     : ""
     }\n Link: ${event.mediaUrls}\n 
     
-    all - ${sitelink}`
+    सभी कार्यक्रम - \n${sitelink}`
 }
 
 async function getTodayEvents() {
@@ -76,7 +76,7 @@ async function getTodayEvents() {
     type: 'today',
     events,
     message: events.length > 0
-      ? `आज के कार्यक्रम:\n\n${formatEventList(events)}\n all- ${sitelink}`
+      ? `आज के कार्यक्रम:\n\n${formatEventList(events)}\n सभी कार्यक्रम - \n${sitelink}`
       : 'आज के लिए कोई कार्यक्रम निर्धारित नहीं है।'
   };
 }
@@ -94,7 +94,7 @@ async function getUpcomingEvents() {
     type: 'upcoming',
     events,
     message: events.length > 0
-      ? `आगामी कार्यक्रमों की सूची:\n\n${formatEventList(events)} \n all- ${sitelink}`
+      ? `आगामी कार्यक्रमों की सूची:\n\n${formatEventList(events)} \n सभी कार्यक्रम - \n ${sitelink}`
       : 'कोई आगामी कार्यक्रम नहीं मिला।'
   };
 }
@@ -115,7 +115,7 @@ async function getEventsByDate(query) {
       date: `${day}/${month}/${year}`,
       events,
       message: events.length > 0
-        ? `${day}/${month}/${year} के कार्यक्रम:\n\n${formatEventList(events)}  \n all- ${sitelink}`
+        ? `${day}/${month}/${year} के कार्यक्रम:\n\n${formatEventList(events)}  \n सभी कार्यक्रम - \n ${sitelink}`
         : `${day}/${month}/${year} को कोई कार्यक्रम नहीं मिला।`
     };
   }
@@ -137,7 +137,7 @@ async function searchEventsByKeyword(query) {
     query,
     events: searchEvents,
     message: searchEvents.length > 0
-      ? `"${query}" से मिलते-जुलते कार्यक्रम:\n\n${formatEventList(searchEvents)}  \n all- ${sitelink}`
+      ? `"${query}" से मिलते-जुलते कार्यक्रम:\n\n${formatEventList(searchEvents)}  \n सभी कार्यक्रम - \n ${sitelink}`
       : `"${query}" से कोई कार्यक्रम नहीं मिला।`
   };
 }
@@ -145,9 +145,9 @@ async function searchEventsByKeyword(query) {
 // Format events list (example)
 function formatEventList(events) {
   return events.map(event =>
-    `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \n${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
+    `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थान: ${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
       : ""
-    }\n Link: ${event.mediaUrls}\n \n`
+    }\n link: ${event.mediaUrls}\n \n`
   ).join('\n');
 }
 

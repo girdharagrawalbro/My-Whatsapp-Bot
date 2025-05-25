@@ -17,7 +17,7 @@ interface User {
   lastInteraction?: string
 }
 
-export default function ManageUsers () {
+export default function ManageUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export default function ManageUsers () {
         const usersData = await usersRes.json()
         setUsers(usersData)
 
-       
+
         setError(null)
       } catch (err) {
         setError('Failed to load users')
@@ -169,7 +169,7 @@ export default function ManageUsers () {
     setShowEditForm(true)
   }
 
- 
+
 
   // Filter and pagination logic
   const filteredUsers = users.filter(
@@ -184,7 +184,7 @@ export default function ManageUsers () {
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
 
   return (
-    <div className='bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden m-6'>
+    <div className='bg-white  overflow-hidden '>
       {/* Add User Modal */}
       {showAddForm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
@@ -372,7 +372,7 @@ export default function ManageUsers () {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Last Interaction
                   </th>
-                  
+
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Actions
                   </th>
@@ -390,8 +390,8 @@ export default function ManageUsers () {
                           <div className='text-sm font-medium text-gray-900'>
                             {user.phone
                               ? `+${user.phone.slice(0, 2)} ${user.phone.slice(
-                                  2
-                                )}`
+                                2
+                              )}`
                               : 'N/A'}
                           </div>
                         </td>
@@ -404,7 +404,7 @@ export default function ManageUsers () {
                             : ''}
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                          <div className='flex space-x-2'>
+                          <div className='flex gap-4'>
                             <button
                               onClick={() => openEditForm(user)}
                               className='text-indigo-600 hover:text-indigo-900'

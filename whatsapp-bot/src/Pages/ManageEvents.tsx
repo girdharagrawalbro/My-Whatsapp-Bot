@@ -221,7 +221,7 @@ export default function ManageEvents() {
   };
 
   return (
-    <div className='bg-white  overflow-hidden'>
+    <div className='bg-white h-screen overflow-hidden'>
       {/* Add Event Modal */}
       {showAddForm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
@@ -436,7 +436,7 @@ export default function ManageEvents() {
         </div>
       ) : (
         <>
-          <div className='overflow-x-auto' id="print-section" >
+          <div className='overflow-x-auto h-screen' id="print-section" >
             <table className='min-w-full divide-y divide-gray-200'>
               <thead className='bg-gray-50'>
                 <tr>
@@ -564,7 +564,7 @@ export default function ManageEvents() {
                               className="text-blue-500 hover:text-blue-700"
                               title="Open link in new tab"
                             >
-                              📌
+                              link
                             </a>
                           )}
                         </div>
