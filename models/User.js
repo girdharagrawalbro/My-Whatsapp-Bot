@@ -4,7 +4,7 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   name: String,
   lastInteraction: { type: Date, default: Date.now },
-  isSupporter: { type: Boolean, default: false },
+  type: { type: String, enum: ['invitation', 'contact'], default: 'contact' },
   optOut: { type: Boolean, default: false }
 });
 

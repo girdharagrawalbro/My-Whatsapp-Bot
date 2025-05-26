@@ -12,8 +12,8 @@ const EventSchema = new mongoose.Schema({
   extractedText: String,
   mediaType: { type: String, enum: ['image', 'pdf', 'video'], required: true, default: 'image' },
   createdAt: { type: Date, default: Date.now },
-  status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'confirmed' },
   sourcePhone: String,
+  status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'confirmed' },
   reminderSent: { type: Boolean, default: false },
   reminderTime: { type: Number, default: 24 },
   eventIndex: { type: Number, unique: true }

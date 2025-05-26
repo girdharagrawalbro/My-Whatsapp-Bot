@@ -36,31 +36,29 @@ exports.handleWebhook = async (req, res) => {
 
           const extension = mediaType === 'pdf' ? 'pdf' : mediaType === 'video' ? 'mp4' : 'jpg';
           const filePath = path.join(tempDir, `event-${Date.now()}.${extension}`);
-          const { imageBBUrl } = await downloadMediaFile(mediaUrl, filePath);
-
+          const { mediaUrls } = await downloadMediaFile(mediaUrl, filePath);
           const eventDetails = await extractEventDetailsFromMedia(filePath, mediaType);
-          fs.unlinkSync(filePath);
 
-          console.log(eventDetails)
+          fs.unlinkSync(filePath);
 
           for (const eventData of eventDetails) {
             const index = await getNextEventIndex();
-            await saveEvent({ eventData, imageBBUrl, mediaType, from, index });
+            await saveEvent({ eventData, mediaUrls, mediaType, from, index });
           }
         }
 
-        await sendWhatsAppMessage(from, `✅ आपकी फाइल प्रोसेस कर ली गई है!`);
-        twiml.message(`✓ फ़ाइल प्रोसेस हो गई।`);
+        // await sendWhatsAppMessage(from, `✅ आपकी फाइल प्रोसेस कर ली गई है!`);
+        // twiml.message(`✓ फ़ाइल प्रोसेस हो गई।`);
       } else if (text.trim()) {
         const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
         if (result.error) {
-          twiml.message(result.error);
+          // twiml.message(result.error);
         }
         else {
-          twiml.message(result.message || 'कोई परिणाम नहीं मिला');
+          // twiml.message(result.message || 'कोई परिणाम नहीं मिला');
         }
       } else {
-        twiml.message('कृपया कोई फ़ाइल या क्वेरी भेजें।');
+        // twiml.message('कृपया कोई फ़ाइल या क्वेरी भेजें।');
       }
     }
     // User flow
@@ -80,11 +78,11 @@ exports.handleWebhook = async (req, res) => {
       const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
 
       if (result.error) twiml.message(result.error);
-      else twiml.message(result.message || reply);
+      // else twiml.message(result.message || reply);
     }
   } catch (err) {
     console.error('Webhook Error:', err);
-    twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
+    // twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
   }
 
   res.type('text/xml').send(twiml.toString());

@@ -4,15 +4,17 @@ const { sendWhatsAppMessage } = require('./whatsappSender');
 const { formatEventList } = require('./eventQuery'); // reuse your formatter
 
 // Schedule daily 6 AM notification with today's events
+const { generateEventPDF } = require('./generatePdf');
+
 function scheduleDailyNotifications() {
-  nodeCron.schedule('0 6 * * *', async () => {
+  nodeCron.schedule('31 16 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const events = await Event.find({ date: { $gte: today, $lt: tomorrow } }).sort({ time: 1 });
+      const events = await Event.find({ date: { $gte: today, $lt: tomorrow }, status: 'confirmed' }).sort({ time: 1 });
       const adminPhone = process.env.ADMIN_PHONE_NUMBER;
 
       if (!adminPhone) {
@@ -20,13 +22,15 @@ function scheduleDailyNotifications() {
         return;
       }
 
-      let message;
       if (events.length > 0) {
-        message = `🌞 सुप्रभात! आज के कार्यक्रम:\n\n${formatEventList(events)}\n\nधन्यवाद!`;
+        const { shortUrl, longUrl } = await generateEventPDF(events);
+        console.log(shortUrl)
+        console.log(longUrl)
+        await sendWhatsAppMessage(adminPhone, '🌞 सुप्रभात! आज के कार्यक्रम ।', longUrl);
+
       } else {
-        message = `🌞 सुप्रभात! आज के लिए कोई कार्यक्रम नहीं है।`;
+        await sendWhatsAppMessage(adminPhone, '🌞 सुप्रभात! आज के लिए कोई कार्यक्रम नहीं है।');
       }
-      await sendWhatsAppMessage(adminPhone, message);
 
     } catch (error) {
       console.error('Error in daily notification:', error);
@@ -36,6 +40,7 @@ function scheduleDailyNotifications() {
     timezone: "Asia/Kolkata"
   });
 }
+
 
 // Send reminder message for one event
 async function sendReminder(event) {

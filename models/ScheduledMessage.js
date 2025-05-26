@@ -7,7 +7,7 @@ const ScheduledMessageSchema = new mongoose.Schema({
   status: { type: String, enum: ['scheduled', 'sent', 'failed'], default: 'scheduled' },
   hidden: { type: Boolean, default: false },
   campaign: String,
-  audience: { type: String, enum: ['all', 'supporters', 'new'], default: 'all' },
+  audience: { type: String, enum: ['all', 'invitation', 'contact'], default: 'all' },
   results: [
     {
       phone: String,

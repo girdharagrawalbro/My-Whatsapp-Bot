@@ -17,68 +17,62 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Read file in chunks for better memory handling
     const fileData = await fs.promises.readFile(filePath);
     const base64Data = fileData.toString('base64');
 
-    // Enhanced MIME type handling
     let mimeType;
     try {
       switch (mediaType) {
         case 'image':
-          // Use file-type for all media types
+        case 'video':
           const { fileTypeFromBuffer } = await import('file-type');
           const detectedType = await fileTypeFromBuffer(fileData);
-          mimeType = detectedType ? detectedType.mime : 'image/jpeg';
+          mimeType = detectedType ? detectedType.mime : getMimeType(mediaType);
           break;
         case 'pdf':
           mimeType = 'application/pdf';
-          break;
-        case 'video':
-          const { fileTypeFromBuffer: videoTypeFromBuffer } = await import('file-type');
-          const videoDetectedType = await videoTypeFromBuffer(fileData);
-          mimeType = videoDetectedType ? videoDetectedType.mime : 'video/mp4';
           break;
         default:
           throw new Error(`Unsupported media type: ${mediaType}`);
       }
     } catch (error) {
       console.error('Error detecting file type:', error);
-      // Fallback to default MIME types
-      mimeType = mediaType === 'image' ? 'image/jpeg' :
-        mediaType === 'pdf' ? 'application/pdf' :
-          mediaType === 'video' ? 'video/mp4' : null;
+      mimeType = getMimeType(mediaType);
     }
 
-    // Set timeout for AI processing (increased to 2 minutes for larger files)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Processing timeout after 2 minutes')), 120000);
-    });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Processing timeout after 2 minutes')), 120000)
+    );
 
     const prompt = `इस ${mediaType} से कार्यक्रम का विवरण निकालें। केवल एक मुख्य कार्यक्रम का विवरण इस JSON प्रारूप में दें:
-    
-      {
-    "title": "कार्यक्रम का शीर्षक (मूल भाषा में)",
-    "description": "कार्यक्रम का विवरण दर्ज करें (यदि यह शादी, सगाई या आशीर्वाद समारोह है, तो कृपया लड़के और लड़की का नाम लिखें)।",
-    "date": "DD/MM/YYYY",
-    "time": "HH:MM (AM/PM)",
-    "address": "कार्यक्रम का पता",
-    "organizer": "आयोजक का नाम",
-    "contactPhone": "संपर्क फोन नंबर"
-  }
+{
+  "title": "कार्यक्रम का शीर्षक (यदि यह शादी, सगाई, आशीर्वाद या सुरुचि भोज है तो हमेशा 'विवाह' लिखें, अन्यथा कार्यक्रम के प्रकार जैसे 'जन्मदिन', 'मुंडन', 'गृह प्रवेश', 'नामकरण', 'सेवानिवृत्ति' आदि लिखें)",
+  "description": "कार्यक्रम से संबंधित व्यक्ति/व्यक्तियों का नाम स्पष्ट रूप से लिखें, नीचे दिए गए नियमों के अनुसार",
+  "date": "DD/MM/YYYY",
+  "time": "HH:MM (AM/PM)",
+  "address": "कार्यक्रम का पता",
+  "organizer": "आयोजक का नाम",
+  "contactPhone": "संपर्क फोन नंबर"
+}
 
-      विशेष नियम:
-      1. विवाह कार्ड के लिए: केवल रिसेप्शन या आशीर्वाद समारोह की तारीख/समय निकालें (अन्य समारोहों को नजरअंदाज करें)
-      2. एकाधिक कार्यक्रम होने पर: कालानुक्रमिक रूप से अंतिम वाले को चुनें
-      3. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं
-  `;
+विशेष नियम:
+1. यदि कार्ड विवाह/सगाई/आशीर्वाद/सुरुचि भोज से संबंधित है तो 'title' हमेशा 'विवाह' होना चाहिए।
+2. 'description' में केवल वर और वधु का नाम हो, केवल 'और' से जुड़ा हो। कोई अन्य विवरण न हो। जैसे: "राहुल और प्रिया"
+3. अन्य कार्यक्रमों के लिए 'title' कार्यक्रम के प्रकार के अनुसार हो और 'description' में निम्न स्वरूप अपनाएं:
+   - जन्मदिन: "नाम का जन्मदिन"
+   - मुंडन: "नाम का मुंडन"
+   - गृह प्रवेश: "नाम/परिवार का गृह प्रवेश"
+   - नामकरण: "नाम का नामकरण"
+   - सेवानिवृत्ति: "नाम की सेवानिवृत्ति"
+4. एकाधिक कार्यक्रम होने पर: केवल अंतिम (latest) कार्यक्रम का विवरण दें।
+5. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं।`;
 
     const result = await Promise.race([
       model.generateContent([
         {
           inlineData: {
             data: base64Data,
-            mimeType: getMimeType(mediaType)
+            mimeType: mimeType
           }
         },
         prompt
@@ -89,38 +83,48 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
     const response = await result.response;
     let text = response.text();
 
-    // Clean and extract JSON from the response
     text = text.replace(/```json|```/g, '').trim();
 
-    // Find the first occurrence of '[' and last occurrence of ']'
     const startIndex = text.indexOf('{');
     const endIndex = text.lastIndexOf('}') + 1;
 
     if (startIndex === -1 || endIndex === 0) {
-      console.error('No JSON array found in response:', text);
-      throw new Error('No valid JSON array found in AI response');
+      console.error('No JSON object found in response:', text);
+      throw new Error('No valid JSON object found in AI response');
     }
 
-    // Extract just the JSON array
     const jsonText = text.substring(startIndex, endIndex);
 
     let events;
     try {
       events = JSON.parse(jsonText);
       console.log('Successfully parsed events:', events);
-      // console.log('Successfully parsed events');
     } catch (e) {
       console.error('Failed to parse AI response:', jsonText);
       throw new Error('Failed to parse AI response as JSON');
     }
 
-    // Validate event data structure
     const validateEvent = (event) => {
       const required = ['title', 'date'];
       const missing = required.filter(field => !event[field]);
       if (missing.length > 0) {
         throw new Error(`Missing required fields: ${missing.join(', ')}`);
       }
+
+      // Normalize for marriage-related events
+      const marriageKeywords = ['विवाह', 'आशीर्वाद', 'सगाई', 'सुरुचि', 'भोज'];
+      if (marriageKeywords.some(word => (event.title || '').includes(word))) {
+        event.title = 'विवाह';
+
+        // Extract only names from description if possible
+        if (event.description) {
+          const nameMatch = event.description.match(/([^\s,]+)\s+और\s+([^\s,]+)/); // e.g., "राज और राधा"
+          if (nameMatch) {
+            event.description = `${nameMatch[1]} और ${nameMatch[2]}`;
+          }
+        }
+      }
+
       return event;
     };
 
@@ -134,23 +138,11 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
   }
 }
 
-// Helper functions
-function getMimeType(mediaType) {
-  const types = {
-    'image': 'image/jpeg',
-    'pdf': 'application/pdf',
-    'video': 'video/mp4'
-  };
-  return types[mediaType] || 'application/octet-stream';
-}
-
 // Utility to format extracted events
 function formatEventList(events, withIndex = true) {
   let response = '';
-  events.forEach((event) => {
-    if (withIndex && event.eventIndex) {
-      response += ` ${event.eventIndex}. `;
-    }
+  events.forEach((event, index) => {
+    if (withIndex) response += ` ${index + 1}. `;
     response += `${event.title}\n( ${event.date}`;
     if (event.time) response += ` - ${event.time} )\n`;
     if (event.address) response += `${event.address}\n`;

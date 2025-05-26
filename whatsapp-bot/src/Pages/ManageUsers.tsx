@@ -184,11 +184,11 @@ export default function ManageUsers() {
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
 
   return (
-    <div className='bg-white  overflow-hidden '>
+    <div className='bg-white  overflow-scroll '>
       {/* Add User Modal */}
       {showAddForm && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+        <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md border shadow-lg border-gray-300'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Add New User</h3>
               <button onClick={() => setShowAddForm(false)}>
@@ -247,8 +247,8 @@ export default function ManageUsers() {
 
       {/* Edit User Modal */}
       {showEditForm && currentUser && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md'>
+        <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md border shadow-lg border-gray-300'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Edit User</h3>
               <button onClick={() => setShowEditForm(false)}>

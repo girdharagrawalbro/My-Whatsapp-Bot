@@ -30,7 +30,7 @@ export default function TemplateManagement() {
         setLoadingTemplates(true)
         const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/templates')
         const data = await res.json()
-        setTemplates(data.templates || [])
+        setTemplates(data || [])
         setTemplateError(null)
       } catch (err) {
         setTemplateError('Failed to load templates')
@@ -119,11 +119,11 @@ export default function TemplateManagement() {
   }
 
   return (
-    <div className='bg-gray-100 min-h-screen'>
+    <div className='bg-gray-100 min-h-screen overflow-scroll'>
       {/* Template Add/Edit Modal */}
       {showAddTemplateForm && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md shadow-lg'>
+        <div className='fixed inset-0  backdrop-blur-sm flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 w-full max-w-md shadow-lg border border-gray-300'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold text-gray-800'>{editingTemplateId ? 'Edit Template' : 'Add New Template'}</h3>
               <button onClick={() => setShowAddTemplateForm(false)}>

@@ -18,6 +18,7 @@ interface User {
   phone: string
   name?: string
   isSupporter?: boolean
+  type: string
 }
 
 interface ScheduledMessage {
@@ -55,7 +56,7 @@ export default function MessageScheduler() {
     sending: false
   })
   const [currentPage, setCurrentPage] = useState(1)
-  const [audience, setAudience] = useState<'all' | 'supporters' | 'new'>('all')
+  const [audience, setAudience] = useState<'all' | 'invitation' | 'contact'>('all')
   const [campaign, setCampaign] = useState('')
   const itemsPerPage = 10
 
@@ -108,10 +109,6 @@ export default function MessageScheduler() {
   }
 
   useEffect(() => {
-    fetchUsers()
-  }, [recipientSearch, audience])
-
-  useEffect(() => {
     fetchScheduledMessages()
   }, [])
 
@@ -136,6 +133,10 @@ export default function MessageScheduler() {
       if (template) setMessage(template.content)
     }
   }, [selectedTemplateId, templates])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [recipientSearch, audience])
 
   // Add this function to set the current date/time in the input
   const setNow = () => {
@@ -206,15 +207,25 @@ export default function MessageScheduler() {
     fetchScheduledMessages()
     fetchUsers()
   }
+  const filteredRecipients = users.filter(user => {
+    // Audience filter
+    if (audience !== 'all' && user.type !== audience) {
+      return false;
+    }
 
-  // Filter recipients based on search term
-  const filteredRecipients = users.filter(
-    user =>
-      user.phone.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-      (user.name &&
-        user.name.toLowerCase().includes(recipientSearch.toLowerCase()))
-  )
+    // Search filter
+    if (recipientSearch) {
+      const searchTerm = recipientSearch.toLowerCase();
+      const phoneMatch = user.phone.toLowerCase().includes(searchTerm);
+      const nameMatch = user.name && user.name.toLowerCase().includes(searchTerm);
 
+      if (!phoneMatch && !nameMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
   // Pagination for scheduled messages
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
@@ -313,8 +324,8 @@ export default function MessageScheduler() {
                   className='p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 >
                   <option value='all'>All Users</option>
-                  <option value='supporters'>Supporters Only</option>
-                  <option value='new'>New Users Only</option>
+                  <option value='contact'>Regular Contacts</option>
+                  <option value='invitation'>Invitation Senders</option>
                 </select>
 
                 <div className='relative w-64'>
