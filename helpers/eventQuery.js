@@ -76,7 +76,7 @@ async function getTodayEvents() {
     type: 'today',
     events,
     message: events.length > 0
-      ? `आज के कार्यक्रम:\n\n${formatEventList(events)}\n सभी कार्यक्रम - \n${sitelink}`
+      ? `आज के कार्यक्रम`
       : 'आज के लिए कोई कार्यक्रम निर्धारित नहीं है।'
   };
 }
@@ -89,12 +89,11 @@ async function getUpcomingEvents() {
     date: { $gte: today },
   })
     .sort({ date: 1, time: 1 })
-    .limit(5);
   return {
     type: 'upcoming',
     events,
     message: events.length > 0
-      ? `आगामी कार्यक्रमों की सूची:\n\n${formatEventList(events)} \n सभी कार्यक्रम - \n ${sitelink}`
+      ? `आगामी कार्यक्रमों की सूची।`
       : 'कोई आगामी कार्यक्रम नहीं मिला।'
   };
 }
@@ -115,7 +114,7 @@ async function getEventsByDate(query) {
       date: `${day}/${month}/${year}`,
       events,
       message: events.length > 0
-        ? `${day}/${month}/${year} के कार्यक्रम:\n\n${formatEventList(events)}  \n सभी कार्यक्रम - \n ${sitelink}`
+        ? `${day}/${month}/${year} के कार्यक्रम`
         : `${day}/${month}/${year} को कोई कार्यक्रम नहीं मिला।`
     };
   }
@@ -137,22 +136,21 @@ async function searchEventsByKeyword(query) {
     query,
     events: searchEvents,
     message: searchEvents.length > 0
-      ? `"${query}" से मिलते-जुलते कार्यक्रम:\n\n${formatEventList(searchEvents)}  \n सभी कार्यक्रम - \n ${sitelink}`
+      ? `"${query}" से मिलते-जुलते कार्यक्रम`
       : `"${query}" से कोई कार्यक्रम नहीं मिला।`
   };
 }
 
-// Format events list (example)
-function formatEventList(events) {
-  return events.map(event =>
-    `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थान: ${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
-      : ""
-    }\n link: ${event.mediaUrls}\n \n`
-  ).join('\n');
-}
+// // Format events list (example)
+// function formatEventList(events) {
+//   return events.map(event =>
+//     `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थान: ${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
+//       : ""
+//     }\n link: ${event.mediaUrls}\n \n`
+//   ).join('\n');
+// }
 
 module.exports = {
   queryEvents,
   classifyQueryWithAI,
-  formatEventList  // export if you want to test/mock separately
 };

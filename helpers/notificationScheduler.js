@@ -1,9 +1,9 @@
 const nodeCron = require('node-cron');
 const Event = require('../models/Event');
-const { sendWhatsAppMessage } = require('./whatsappSender');
 const { formatEventList } = require('./eventQuery'); // reuse your formatter
 
 // Schedule daily 6 AM notification with today's events
+const { sendWhatsAppMessage } = require('./whatsappSender');
 const { generateEventPDF } = require('./generatePdf');
 
 function scheduleDailyNotifications() {
@@ -23,9 +23,7 @@ function scheduleDailyNotifications() {
       }
 
       if (events.length > 0) {
-        const { shortUrl, longUrl } = await generateEventPDF(events);
-        console.log(shortUrl)
-        console.log(longUrl)
+        const { longUrl } = await generateEventPDF(events);
         await sendWhatsAppMessage(adminPhone, '🌞 सुप्रभात! आज के कार्यक्रम ।', longUrl);
 
       } else {

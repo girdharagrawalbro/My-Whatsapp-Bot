@@ -15,25 +15,25 @@ const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
 // Upload only videos to Cloudinary, others to ImgBB
 async function uploadMedia(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-
   if (['.mp4', '.mov', '.avi', '.mkv'].includes(ext)) {
-    // ✅ Upload to Cloudinary (video only)
-    return await uploadToCloudinary(filePath);
+    return await uploadToCloudinary(filePath, { resource_type: 'video' });
+  } else if (['.xlsx', '.xls'].includes(ext)) {
+    // Upload Excel to Cloudinary as well
+    return await uploadToCloudinary(filePath, { resource_type: 'raw' });
   } else {
-    // ✅ Upload to ImgBB (images + pdf)
     return await uploadToImgBB(filePath);
   }
 }
 
-async function uploadToCloudinary(filePath) {
+async function uploadToCloudinary(filePath, options = {}) {
   try {
     const result = await cloudinary.uploader.upload(filePath, {
       folder: 'whatsapp-bot',
-      resource_type: 'video',
       use_filename: true,
       unique_filename: false,
       access_mode: 'public',
-      type: 'upload'
+      type: 'upload',
+      ...options
     });
 
     console.log("✅ Cloudinary upload successful! URL:", result.secure_url);
@@ -61,41 +61,41 @@ async function uploadToImgBB(filePath) {
   }
 }
 
-async function shortenUrl(url) {
-  try {
-    if (!isValidUrl(url)) {
-      console.warn('Invalid URL provided:', url);
-      return url;
-    }
+// async function shortenUrl(url) {
+//   try {
+//     if (!isValidUrl(url)) {
+//       console.warn('Invalid URL provided:', url);
+//       return url;
+//     }
 
-    const encodedUrl = encodeURIComponent(url);
-    const tinyUrl = `https://tinyurl.com/api-create.php?url=${encodedUrl}`;
+//     const encodedUrl = encodeURIComponent(url);
+//     const tinyUrl = `https://tinyurl.com/api-create.php?url=${encodedUrl}`;
 
-    const response = await axios.get(tinyUrl, {
-      headers: {
-        'Accept': 'text/plain'
-      }
-    });
+//     const response = await axios.get(tinyUrl, {
+//       headers: {
+//         'Accept': 'text/plain'
+//       }
+//     });
 
-    if (response.data && isValidUrl(response.data)) {
-      return response.data;
-    }
+//     if (response.data && isValidUrl(response.data)) {
+//       return response.data;
+//     }
 
-    return url;
-  } catch (err) {
-    console.error('URL shortening failed:', err.message);
-    return url;
-  }
-}
+//     return url;
+//   } catch (err) {
+//     console.error('URL shortening failed:', err.message);
+//     return url;
+//   }
+// }
 
-function isValidUrl(string) {
-  try {
-    new URL(string);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+// function isValidUrl(string) {
+//   try {
+//     new URL(string);
+//     return true;
+//   } catch (_) {
+//     return false;
+//   }
+// }
 
 async function downloadMediaFile(mediaUrl, localFilePath) {
   try {
@@ -118,9 +118,9 @@ async function downloadMediaFile(mediaUrl, localFilePath) {
     });
 
     const uploadedUrl = await uploadMedia(localFilePath);
-    const shortened = await shortenUrl(uploadedUrl);
+    // const shortened = await shortenUrl(uploadedUrl);
 
-    return { mediaUrls: shortened };
+    return { mediaUrls: uploadedUrl };
   } catch (error) {
     console.error('Error processing media file:', error);
     throw error;

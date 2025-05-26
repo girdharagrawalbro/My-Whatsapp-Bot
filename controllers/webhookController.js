@@ -3,13 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const Event = require('../models/Event');
 const User = require('../models/User');
-const { extractEventDetailsFromMedia
-} = require('../helpers/eventExtractor');
-
-const { downloadMediaFile } = require('../helpers/mediaHandler')
+const { extractEventDetailsFromMedia, extractEventDetailsFromText, extractEventDetailsFromExcel } = require('../helpers/eventExtractor');
+const { downloadMediaFile } = require('../helpers/mediaHandler');
 const { getNextEventIndex, saveEvent } = require('../helpers/eventManager');
 const { sendWhatsAppMessage } = require('../helpers/whatsappSender');
 const { queryEvents } = require('../helpers/eventQuery');
+const { generateEventPDF } = require('../helpers/generatePdf');
+
+const adminPhone = process.env.ADMIN_PHONE_NUMBER;
 
 exports.handleWebhook = async (req, res) => {
   const from = req.body.WaId || req.body.From;
@@ -34,10 +35,13 @@ exports.handleWebhook = async (req, res) => {
           const mediaType = getMediaType(contentType);
           if (!mediaType) continue;
 
-          const extension = mediaType === 'pdf' ? 'pdf' : mediaType === 'video' ? 'mp4' : 'jpg';
+          const extension = getFileExtension(contentType);
           const filePath = path.join(tempDir, `event-${Date.now()}.${extension}`);
           const { mediaUrls } = await downloadMediaFile(mediaUrl, filePath);
-          const eventDetails = await extractEventDetailsFromMedia(filePath, mediaType);
+
+          let eventDetails;
+
+          eventDetails = await extractEventDetailsFromMedia(filePath, mediaType);
 
           fs.unlinkSync(filePath);
 
@@ -47,18 +51,33 @@ exports.handleWebhook = async (req, res) => {
           }
         }
 
-        // await sendWhatsAppMessage(from, `✅ आपकी फाइल प्रोसेस कर ली गई है!`);
-        // twiml.message(`✓ फ़ाइल प्रोसेस हो गई।`);
+        // twiml.message(`✅ ${req.body.NumMedia}कार्यक्रम सफलतापूर्वक जोड़े गए !`);
       } else if (text.trim()) {
-        const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
-        if (result.error) {
-          // twiml.message(result.error);
-        }
-        else {
-          // twiml.message(result.message || 'कोई परिणाम नहीं मिला');
+        // Check if text contains event details
+        const eventDetails = await extractEventDetailsFromText(text);
+        if (eventDetails.length > 0) {
+          for (const eventData of eventDetails) {
+            const index = await getNextEventIndex();
+            await saveEvent({ eventData, from, index });
+          }
+          twiml.message(`✅ ${eventDetails.length} कार्यक्रम सफलतापूर्वक जोड़े गए !`);
+        } else {
+          // Fall back to query if no events found in text
+          const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
+
+          if (result.error) {
+            twiml.message(result.error);
+          } else if (result.events.length > 0) {
+            const { longUrl } = await generateEventPDF(result.events, today = false);
+            console.log(longUrl)
+            await sendWhatsAppMessage(adminPhone, result.message, longUrl);
+          }
+          else {
+            twiml.message(result.message || 'कोई परिणाम नहीं मिला');
+          }
         }
       } else {
-        // twiml.message('कृपया कोई फ़ाइल या क्वेरी भेजें।');
+        twiml.message('कृपया कार्यक्रम विवरण के साथ एक फ़ाइल (छवि/पीडीएफ/वीडियो/एक्सेल) या text भेजें।');
       }
     }
     // User flow
@@ -73,24 +92,37 @@ exports.handleWebhook = async (req, res) => {
         await User.findByIdAndUpdate(user._id, { lastInteraction: new Date() });
       }
 
-      const greeting = isNewUser ? 'नमस्ते! आपका स्वागत है. \n' : '';
-      const reply = greeting;
-      const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
+      const greeting = isNewUser ? 'नमस्ते! आपका स्वागत है. \n' : 'नमस्ते! आपका स्वागत है';
 
-      if (result.error) twiml.message(result.error);
-      // else twiml.message(result.message || reply);
+      twiml.message(greeting);
     }
+
   } catch (err) {
     console.error('Webhook Error:', err);
-    // twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
+    twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
   }
 
   res.type('text/xml').send(twiml.toString());
 };
 
+
 function getMediaType(contentType) {
   if (contentType.startsWith('image/')) return 'image';
   if (contentType === 'application/pdf') return 'pdf';
   if (contentType.startsWith('video/')) return 'video';
+  if (contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'excel';
   return null;
+}
+
+function getFileExtension(contentType) {
+  const extensions = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'application/pdf': 'pdf',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx'
+  };
+  return extensions[contentType] || 'bin';
 }
