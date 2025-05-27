@@ -7,7 +7,7 @@ const { sendWhatsAppMessage } = require('./whatsappSender');
 const { generateEventPDF } = require('./generatePdf');
 
 function scheduleDailyNotifications() {
-  nodeCron.schedule('0 8 * * *', async () => {
+  nodeCron.schedule('15 8 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -23,7 +23,7 @@ function scheduleDailyNotifications() {
       }
 
       if (events.length > 0) {
-        const { longUrl } = await generateEventPDF(events);
+        const { longUrl } = await generateEventPDF(events, today = true);
         await sendWhatsAppMessage(adminPhone, '🌞 सुप्रभात! आज के कार्यक्रम ।', longUrl);
 
       } else {
