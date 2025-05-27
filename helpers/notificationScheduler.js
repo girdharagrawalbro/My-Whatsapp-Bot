@@ -7,7 +7,7 @@ const { sendWhatsAppMessage } = require('./whatsappSender');
 const { generateEventPDF } = require('./generatePdf');
 
 function scheduleDailyNotifications() {
-  nodeCron.schedule('31 16 * * *', async () => {
+  nodeCron.schedule('0 8 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
