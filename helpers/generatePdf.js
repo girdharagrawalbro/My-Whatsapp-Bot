@@ -1,5 +1,5 @@
 const fs = require('fs');
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');  // 👈 Replacing puppeteer
 const cloudinary = require('cloudinary').v2;
 const axios = require('axios');
 require('dotenv').config();
@@ -24,11 +24,9 @@ function isValidUrl(string) {
 async function shortenUrl(url) {
   try {
     if (!isValidUrl(url)) return url;
-
     const encodedUrl = encodeURIComponent(url);
     const tinyUrl = `https://tinyurl.com/api-create.php?url=${encodedUrl}`;
     const response = await axios.get(tinyUrl, { headers: { 'Accept': 'text/plain' } });
-
     return isValidUrl(response.data) ? response.data : url;
   } catch (err) {
     console.error('URL shortening failed:', err.message);
@@ -45,7 +43,6 @@ async function generateEventPDF(events, today = true) {
       weekday: 'long'
     });
 
-    // Sort events by date and time (earliest first)
     const sortedEvents = [...events].sort((a, b) => {
       const dateA = new Date(`${a.date} ${a.time}`);
       const dateB = new Date(`${b.date} ${b.time}`);
@@ -53,22 +50,18 @@ async function generateEventPDF(events, today = true) {
     });
 
     const eventRows = sortedEvents.map(e => `
-                <tr>
-                  ${today
+      <tr>
+        ${today
         ? `<td style="text-align:center;">${e.time}</td>`
-        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} - ${e.time}</td>`
-      }
-                  <td>${e.title}</td>
-                  <td>${e.description}</td>
-                  <td>${e.organizer}</td>
-                  <td>${e.address}</td>
-                  <td style="text-align:center;">${e.contactPhone}</td>
-              <td style="text-align:center;">
-            ${e.mediaUrls ? `<a href="${e.mediaUrls}" target="_blank">कार्ड</a>` : ''}
-          </td>
-
-                </tr>
-              `).join('');
+        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} - ${e.time}</td>`}
+        <td>${e.title}</td>
+        <td>${e.description}</td>
+        <td>${e.organizer}</td>
+        <td>${e.address}</td>
+        <td style="text-align:center;">${e.contactPhone}</td>
+        <td style="text-align:center;">${e.mediaUrls ? `<a href="${e.mediaUrls}" target="_blank">कार्ड</a>` : ''}</td>
+      </tr>
+    `).join('');
 
     const htmlContent = `
                 <html>
@@ -228,17 +221,18 @@ async function generateEventPDF(events, today = true) {
  </html>
               `;
 
-    const browser = await puppeteer.launch({ headless: 'new' });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const pdfPath = `${today ? `कार्यक्रम सूची - ${todayDate}` : 'कार्यक्रम सूची'}.pdf`;
 
-    const pdfPath = `${today ? `कार्यक्रम सूची - ${todayDate} .pdf` : 'कार्यक्रम सूची .pdf'}`;
+    const browser = await chromium.launch();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+
     await page.pdf({
       path: pdfPath,
       format: 'A4',
       printBackground: true,
-      margin: { top: '0cm', bottom: '0cm', left: '0cm', right: '0cm' },
-      displayHeaderFooter: false
+      margin: { top: '0cm', bottom: '0cm', left: '0cm', right: '0cm' }
     });
 
     await browser.close();
@@ -252,10 +246,7 @@ async function generateEventPDF(events, today = true) {
     });
 
     fs.unlinkSync(pdfPath);
-
     const longUrl = uploadResult.secure_url;
-    // const shortUrl = await shortenUrl(longUrl);
-
     return { longUrl };
   } catch (err) {
     console.error('PDF generation failed:', err.message);
