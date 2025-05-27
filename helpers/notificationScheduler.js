@@ -23,7 +23,7 @@ function scheduleDailyNotifications() {
       }
 
       if (events.length > 0) {
-        const { longUrl } = await generateEventPDF(events, today = true);
+        const { longUrl } = await generateEventPDF(events);
         await sendWhatsAppMessage(adminPhone, '🌞 सुप्रभात! आज के कार्यक्रम ।', longUrl);
 
       } else {

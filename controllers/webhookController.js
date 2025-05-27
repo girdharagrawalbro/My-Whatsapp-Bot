@@ -68,7 +68,7 @@ exports.handleWebhook = async (req, res) => {
           if (result.error) {
             twiml.message(result.error);
           } else if (result.events.length > 0) {
-            const { longUrl } = await generateEventPDF(result.events, result.type === 'today' ? today = true : today = false);
+            const { longUrl } = await generateEventPDF(result.events, result.type === 'today' ? true : false);
             console.log(longUrl)
             await sendWhatsAppMessage(adminPhone, result.message, longUrl);
           }

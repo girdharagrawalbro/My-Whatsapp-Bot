@@ -238,7 +238,12 @@ module.exports = {
       const response = await result.response;
       const textResponse = response.text();
       const jsonText = textResponse.replace(/```json|```/g, '').trim();
-      const events = JSON.parse(jsonText);
+      let events;
+      try {
+        events = JSON.parse(jsonText);
+      } catch (e) {
+        events = null; // or keep as raw text
+      }
       return Array.isArray(events) ? events.map(validateEvent) : [validateEvent(events)];
     } catch (error) {
       console.error('Error extracting from text:', error);

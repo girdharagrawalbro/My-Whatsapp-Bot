@@ -1,4 +1,3 @@
-// utils/pdfGenerator.js
 const fs = require('fs');
 const puppeteer = require('puppeteer');
 const cloudinary = require('cloudinary').v2;
