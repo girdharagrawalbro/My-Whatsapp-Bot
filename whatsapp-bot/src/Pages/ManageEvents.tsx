@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react'
-
 import * as XLSX from 'xlsx';
-
-
 import {
   FiRefreshCw,
   FiSearch,
@@ -13,6 +10,7 @@ import {
   FiChevronRight,
   FiX
 } from 'react-icons/fi'
+import toast from 'react-hot-toast';
 
 interface Event {
   _id: string
@@ -24,6 +22,7 @@ interface Event {
   contactPhone?: string
   address?: string
   mediaUrls?: string
+  isAttended?: boolean
 }
 
 export default function ManageEvents() {
@@ -41,9 +40,15 @@ export default function ManageEvents() {
   })
 
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
+    description: '',
     date: '',
-    organizer: ''
+    time: '',
+    organizer: '',
+    contactPhone: '',
+    address: '',
+    mediaUrls: '',
+    isAttended: false
   })
 
   // Fetch events
@@ -51,7 +56,7 @@ export default function ManageEvents() {
     const fetchEvents = async () => {
       try {
         setLoading(true)
-        const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/events')
+        const res = await fetch('http://localhost:3000/api/events')
         const data = await res.json()
         setEvents(data)
         setError(null)
@@ -68,7 +73,7 @@ export default function ManageEvents() {
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/events')
+      const res = await fetch('http://localhost:3000/api/events')
       const data = await res.json()
       setEvents(data)
       setError(null)
@@ -83,12 +88,13 @@ export default function ManageEvents() {
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch('https://my-whatsapp-bot-6a9u.onrender.com/api/events', {
+      const res = await fetch('http://localhost:3000/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
       if (res.ok) {
+        toast.success("Succesfully Added")
         const newEvent = await res.json()
         setEvents([...events, newEvent])
         setShowAddForm(false)
@@ -96,6 +102,8 @@ export default function ManageEvents() {
       }
     } catch (err) {
       setError('Failed to add event')
+      toast.error('Failed to add event')
+
     }
   }
 
@@ -103,12 +111,13 @@ export default function ManageEvents() {
     e.preventDefault()
     if (!currentEvent) return
     try {
-      const res = await fetch(`https://my-whatsapp-bot-6a9u.onrender.com/api/events/${currentEvent._id}`, {
+      const res = await fetch(`http://localhost:3000/api/events/${currentEvent._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
       if (res.ok) {
+        toast.success("Succesfully Updated")
         const updatedEvent = await res.json()
         setEvents(events.map(ev => (ev._id === updatedEvent._id ? updatedEvent : ev)))
         setShowEditForm(false)
@@ -116,13 +125,14 @@ export default function ManageEvents() {
       }
     } catch (err) {
       setError('Failed to update event')
+      toast.error('Failed to update event')
     }
   }
 
   const handleDeleteEvent = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        const res = await fetch(`https://my-whatsapp-bot-6a9u.onrender.com/api/events/${id}`, {
+        const res = await fetch(`http://localhost:3000/api/events/${id}`, {
           method: 'DELETE'
         })
         if (res.ok) {
@@ -136,19 +146,32 @@ export default function ManageEvents() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      title: '',
+      description: '',
       date: '',
-      organizer: ''
+      time: '',
+      organizer: '',
+      contactPhone: '',
+      address: '',
+      mediaUrls: '',
+      isAttended: false
     })
   }
 
   const openEditForm = (event: Event) => {
     setCurrentEvent(event)
     setFormData({
-      name: event.title,
-      date: event.date.slice(0, 16), // for datetime-local input
-      organizer: event.organizer || ''
-    })
+      title: event.title,
+      description: event.description || '',
+      date: event.date,
+      time: event.time,
+      organizer: event.organizer || '',
+      contactPhone: event.contactPhone || '',
+      address: event.address || '',
+      mediaUrls: event.mediaUrls || '',
+      isAttended: event.isAttended ?? false,
+    });
+
     setShowEditForm(true)
   }
 
@@ -184,17 +207,40 @@ export default function ManageEvents() {
   const currentEvents = filteredEvents.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
 
-  const exportPDF = () => {
-    const printContent = document.getElementById('print-section')?.innerHTML;
-    const originalContent = document.body.innerHTML;
-
-    if (printContent) {
-      document.body.innerHTML = printContent;
-      window.print();
-      document.body.innerHTML = originalContent;
-      window.location.reload(); // reload to restore React app
+  const exportPDF = async () => {
+    if (!filteredEvents || filteredEvents.length === 0) {
+      toast.error("No data to make PDF");
+      return;
     }
-  }
+
+    toast.promise(
+      fetch('http://localhost:3000/api/makePdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          events: filteredEvents,
+          date: filters.date
+        })
+      }).then(async (res) => {
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to generate PDF');
+        }
+
+        // If success, open the generated PDF link
+        window.open(data.link, '_blank');
+        return data;
+      }),
+      {
+        loading: 'Generating PDF...',
+        success: <b>PDF generated successfully!</b>,
+        error: (err) => <b>{err.message || 'Could not generate PDF.'}</b>,
+      }
+    );
+  };
 
 
   // Excel Export handler
@@ -225,7 +271,7 @@ export default function ManageEvents() {
       {/* Add Event Modal */}
       {showAddForm && (
         <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-2 w-full max-w-md border shadow-lg border-gray-300'>
+          <div className='bg-white rounded-lg py-2 px-4 w-full max-w-md border shadow-lg border-gray-300'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Add New Event</h3>
               <button onClick={() => setShowAddForm(false)}>
@@ -233,43 +279,88 @@ export default function ManageEvents() {
               </button>
             </div>
             <form onSubmit={handleAddEvent}>
-              <div className='space-y-4'>
+              <div className='space-y-1'>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Event Name*
+                    Event Title<span className='text-red-700'>*</span>
                   </label>
                   <input
                     type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
                     required
                   />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Date & Time*
+                    Description
                   </label>
                   <input
-                    type='datetime-local'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    required
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
                   />
+                </div>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Date
+                    </label>
+                    <input
+                      type='date'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.date}
+                      onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Time
+                    </label>
+                    <input
+                      type='time'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.time}
+                      onChange={e => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
                     Organizer
                   </label>
-                  <textarea
+                  <input
+                    type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
                     value={formData.organizer}
                     onChange={e => setFormData({ ...formData, organizer: e.target.value })}
                   />
                 </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Contact Phone
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.contactPhone}
+                    onChange={e => setFormData({ ...formData, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Address
+                  </label>
+                  <input
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+
               </div>
-              <div className='mt-12 flex justify-end space-x-3'>
+              <div className='mt-6 flex justify-end space-x-3'>
                 <button
                   type='button'
                   onClick={() => setShowAddForm(false)}
@@ -291,8 +382,8 @@ export default function ManageEvents() {
 
       {/* Edit Event Modal */}
       {showEditForm && currentEvent && (
-        <div className='fixed inset-0 backdrop-blur-sm  flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-2 w-full max-w-md border shadow-lg border-gray-300'>
+        <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg py-2 px-4 w-full max-w-md border shadow-lg border-gray-300'>
             <div className='flex justify-between items-center mb-4'>
               <h3 className='text-lg font-semibold'>Edit Event</h3>
               <button onClick={() => setShowEditForm(false)}>
@@ -300,43 +391,117 @@ export default function ManageEvents() {
               </button>
             </div>
             <form onSubmit={handleEditEvent}>
-              <div className='space-y-4'>
+              <div className='space-y-1'>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Event Name*
+                    Event Title<span className='text-red-700'>*</span>
                   </label>
                   <input
                     type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
                     required
                   />
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
-                    Date & Time*
+                    Description
                   </label>
                   <input
-                    type='datetime-local'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    required
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
                   />
+                </div>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Date
+                    </label>
+                    <input
+                      type='date'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.date}
+                      onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Time
+                    </label>
+                    <input
+                      type='time'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.time}
+                      onChange={e => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className='block text-sm font-medium text-gray-700'>
                     Organizer
                   </label>
-                  <textarea
+                  <input
+                    type='text'
                     className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
                     value={formData.organizer}
                     onChange={e => setFormData({ ...formData, organizer: e.target.value })}
                   />
                 </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Contact Phone
+                  </label>
+                  <input
+                    type='text'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.contactPhone}
+                    onChange={e => setFormData({ ...formData, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Address
+                  </label>
+                  <input
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Media URL
+                  </label>
+                  <input
+                    type='url'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                    value={formData.mediaUrls}
+                    onChange={e => setFormData({ ...formData, mediaUrls: e.target.value })}
+                  />
+                </div>
+                <div className='flex gap-2 items-center'>
+                  <label className='block w-28 text-sm font-medium text-gray-700'>
+                    Attended?
+                  </label>
+                  <select
+                    name="isattended"
+                    id="isattended"
+                    value={formData.isAttended?.toString()}  // convert boolean to string
+                    onChange={e =>
+                      setFormData({ ...formData, isAttended: e.target.value === 'true' })
+                    }
+                    className='mt-1 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 px-1 py-2'
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+
+
               </div>
-              <div className='mt-12 flex justify-end space-x-3'>
+              <div className='mt-2 flex justify-end space-x-3'>
                 <button
                   type='button'
                   onClick={() => setShowEditForm(false)}
@@ -356,6 +521,7 @@ export default function ManageEvents() {
         </div>
       )}
 
+      {/* Rest of your component remains the same */}
       {/* Main Content */}
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <h2 className='text-lg font-semibold text-gray-800'>Event Management</h2>
@@ -416,7 +582,6 @@ export default function ManageEvents() {
             Export Excel
           </button>
         </div>
-
       </div>
 
       {error ? (
@@ -436,48 +601,46 @@ export default function ManageEvents() {
         </div>
       ) : (
         <>
-          <div className='overflow-x-auto h-screen' id="print-section" >
+          <div className='overflow-x-auto h-screen' id="print-section">
             <table className='min-w-full divide-y divide-gray-200'>
               <thead className='bg-gray-50'>
                 <tr>
                   <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     S.No.
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Name
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Description
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Date & Time
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Organizer
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Address
                   </th>
-
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Contact
-                  </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Link
                   </th>
-                  <th className='px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Attedned
+                  </th>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Action
                   </th>
                 </tr>
               </thead>
-              <tbody className='bg-white divide-y divide-gray-200'>
+              <tbody className='bg-white divide-y text-center divide-gray-200'>
                 {currentEvents.length > 0 ? (
                   currentEvents.map((event, index) => (
                     <tr key={event._id} className='hover:bg-gray-50'>
                       <td className='px-2 py-4 whitespace-nowrap text-sm text-gray-500 text-center'>
                         {indexOfFirstItem + index + 1}
                       </td>
-
                       <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
                         <div className="truncate max-w-[10rem]">{event.title}</div>
                         {event.title && event.title.length > 10 && (
@@ -498,7 +661,6 @@ export default function ManageEvents() {
                           </div>
                         )}
                       </td>
-
                       <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-500">
                         {event.date ? (
                           <div className="flex flex-col">
@@ -508,7 +670,8 @@ export default function ManageEvents() {
                         ) : (
                           ''
                         )}
-                      </td><td className="px-2 py-4 whitespace-nowrap w-28 relative group">
+                      </td>
+                      <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
                         <div className="truncate max-w-[10rem]">{event.organizer}</div>
                         {event.organizer && event.organizer.length > 20 && (
                           <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
@@ -517,8 +680,29 @@ export default function ManageEvents() {
                             </div>
                           </div>
                         )}
-                      </td>
 
+                        {event.contactPhone ? (
+                          <div className="flex flex-col truncate max-w-[8rem]">
+                            {event.contactPhone.split(',').map((phone, idx) => (
+                              <span key={idx} className="truncate">
+                                {phone.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          ''
+                        )}
+                        {event.contactPhone && event.contactPhone.length > 15 && (
+                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            <div className="whitespace-normal break-words">
+                              {event.contactPhone.split(',').map((phone, idx) => (
+                                <div key={idx}>{phone.trim()}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </td>
                       <td className="px-2 py-4 whitespace-nowrap w-28 relative group">
                         <div className="truncate max-w-[10rem]">{event.address}</div>
                         {event.address && event.address.length > 20 && (
@@ -530,68 +714,56 @@ export default function ManageEvents() {
                         )}
                       </td>
 
-                      <td className="px-2 py-4 text-sm text-gray-500 w-32 relative group">
-                        {event.contactPhone ? (
-                          <div className="flex flex-col truncate max-w-[8rem]">
-                            {event.contactPhone.split(',').map((phone, idx) => (
-                              <span key={idx} className="truncate">
-                                {phone.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          'N/A'
-                        )}
-
-                        {event.contactPhone && event.contactPhone.length > 15 && (
-                          <div className="absolute z-10 invisible group-hover:visible max-w-xs p-3 mt-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-md shadow-lg transition-opacity duration-300 opacity-0 group-hover:opacity-100">
-                            <div className="whitespace-normal break-words">
-                              {event.contactPhone.split(',').map((phone, idx) => (
-                                <div key={idx}>{phone.trim()}</div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-2 py-4 text-sm text-gray-500 w-24 truncate">
-                        <div className="flex items-center gap-2">
+                      <td className="px-2 py-4 text-sm text-gray-500  text-center">
+                        <div className="flex justify-center items-center gap-2">
                           {event.mediaUrls && (
                             <a
                               href={event.mediaUrls}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-500 hover:text-blue-700"
-                              title="Open link in new tab"
+                              className="text-blue-500 hover:text-blue-700 text-lg"
+                              title="Open media link"
                             >
-                              link
+                              🔗
                             </a>
                           )}
                         </div>
                       </td>
-
-                      <td className='px-2 py-4 whitespace-nowrap text-sm font-medium'>
-                        <div className='flex space-x-2'>
+                      <td className="px-2 py-4 text-sm text-gray-500  text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                        ${event.isAttended
+                            ? 'bg-green-100 text-green-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {
+                            event.isAttended ? "Yes" : "No"
+                          }
+                        </span></td>
+                      <td className="px-2 py-4 whitespace-nowrap text-sm font-medium text-center">
+                        <div className="flex justify-center items-center space-x-2">
                           <button
                             onClick={() => openEditForm(event)}
-                            className='text-indigo-600 hover:text-indigo-900'
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Edit"
                           >
                             <FiEdit2 />
                           </button>
                           <button
                             onClick={() => handleDeleteEvent(event._id)}
-                            className='text-red-600 hover:text-red-900'
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete"
                           >
                             <FiTrash2 />
                           </button>
                         </div>
                       </td>
+
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={9}
                       className='px-2 py-4 text-center text-sm text-gray-500'
                     >
                       No events found

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import {
   FiRefreshCw,
   FiSearch,
@@ -14,6 +15,7 @@ interface User {
   _id: string
   phone: string
   name?: string
+  type: string
   lastInteraction?: string
 }
 
@@ -29,8 +31,8 @@ export default function ManageUsers() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [formData, setFormData] = useState({
     phone: '',
-    name: ''
-
+    name: '',
+    type: ''
   })
   // Fetch data
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function ManageUsers() {
 
         // Fetch users
         const usersRes = await fetch(
-          'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
+          'http://localhost:3000/api/users'
         )
         const usersData = await usersRes.json()
         setUsers(usersData)
@@ -64,7 +66,7 @@ export default function ManageUsers() {
 
       // Fetch users
       const usersRes = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/users'
+        'http://localhost:3000/api/users'
       )
       const usersData = await usersRes.json()
       setUsers(usersData)
@@ -82,7 +84,7 @@ export default function ManageUsers() {
     e.preventDefault()
     try {
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/users',
+        'http://localhost:3000/api/users',
         {
           method: 'POST',
           headers: {
@@ -95,6 +97,7 @@ export default function ManageUsers() {
       )
 
       if (res.ok) {
+        toast.success("New User Added");
         const newUser = await res.json()
         setUsers([...users, newUser])
         setShowAddForm(false)
@@ -102,6 +105,7 @@ export default function ManageUsers() {
       }
     } catch (err) {
       setError('Failed to add user')
+      toast.error('Failed to add user')
     }
   }
 
@@ -124,6 +128,7 @@ export default function ManageUsers() {
       )
 
       if (res.ok) {
+        toast.success("User Details Updated");
         const updatedUser = await res.json()
         setUsers(users.map(u => (u._id === updatedUser._id ? updatedUser : u)))
         setShowEditForm(false)
@@ -131,6 +136,7 @@ export default function ManageUsers() {
       }
     } catch (err) {
       setError('Failed to update user')
+      toast.error('Failed to update user')
     }
   }
 
@@ -156,7 +162,8 @@ export default function ManageUsers() {
   const resetForm = () => {
     setFormData({
       phone: '',
-      name: ''
+      name: '',
+      type: ''
     })
   }
 
@@ -164,7 +171,8 @@ export default function ManageUsers() {
     setCurrentUser(user)
     setFormData({
       phone: user.phone,
-      name: user.name || ''
+      name: user.name || '',
+      type: user.type || 'contact'
     })
     setShowEditForm(true)
   }
@@ -224,6 +232,16 @@ export default function ManageUsers() {
                     }
                   />
                 </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700'>
+                    Type
+                  </label>
+                  <select name="type" id="type" value={formData.type}
+                    onChange={e => setFormData(e.target.value as any)}>
+                    <option value="contact">Contacted User</option>
+                    <option value="invitation">Invitaion User</option>
+                  </select>
+                </div>
               </div>
               <div className='mt-6 flex justify-end space-x-3'>
                 <button
@@ -242,68 +260,81 @@ export default function ManageUsers() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div >
+      )
+      }
 
       {/* Edit User Modal */}
-      {showEditForm && currentUser && (
-        <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md border shadow-lg border-gray-300'>
-            <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold'>Edit User</h3>
-              <button onClick={() => setShowEditForm(false)}>
-                <FiX className='text-gray-500' />
-              </button>
+      {
+        showEditForm && currentUser && (
+          <div className='fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50'>
+            <div className='bg-white rounded-lg p-6 w-full max-w-md border shadow-lg border-gray-300'>
+              <div className='flex justify-between items-center mb-4'>
+                <h3 className='text-lg font-semibold'>Edit User</h3>
+                <button onClick={() => setShowEditForm(false)}>
+                  <FiX className='text-gray-500' />
+                </button>
+              </div>
+              <form onSubmit={handleEditUser}>
+                <div className='space-y-4'>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Phone Number*
+                    </label>
+                    <input
+                      type='text'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.phone}
+                      onChange={e =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Name
+                    </label>
+                    <input
+                      type='text'
+                      className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                      value={formData.name}
+                      onChange={e =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className='block text-sm font-medium text-gray-700'>
+                      Type
+                    </label>
+                    <select name="type" id="type" value={formData.type}
+                      onChange={e => setFormData(e.target.value as any)}>
+                      <option value="contact">Contacted User</option>
+                      <option value="invitation">Invitaion User</option>
+                    </select>
+                  </div>
+                </div>
+                <div className='mt-6 flex justify-end space-x-3'>
+                  <button
+                    type='button'
+                    onClick={() => setShowEditForm(false)}
+                    className='px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type='submit'
+                    className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                  >
+                    Update User
+                  </button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleEditUser}>
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    Phone Number*
-                  </label>
-                  <input
-                    type='text'
-                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.phone}
-                    onChange={e =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700'>
-                    Name
-                  </label>
-                  <input
-                    type='text'
-                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                    value={formData.name}
-                    onChange={e =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <div className='mt-6 flex justify-end space-x-3'>
-                <button
-                  type='button'
-                  onClick={() => setShowEditForm(false)}
-                  className='px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                >
-                  Cancel
-                </button>
-                <button
-                  type='submit'
-                  className='px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                >
-                  Update User
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Main Content */}
       <div className='p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
@@ -339,137 +370,139 @@ export default function ManageUsers() {
         </div>
       </div>
 
-      {error ? (
-        <div className='text-red-500 p-4 text-center'>{error}</div>
-      ) : loading ? (
-        <div className='p-8 flex justify-center items-center'>
-          <div className='animate-pulse flex space-x-4'>
-            <div className='flex-1 space-y-4 py-1'>
-              <div className='h-4 bg-gray-200 rounded w-3/4'></div>
-              <div className='space-y-2'>
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className='h-4 bg-gray-200 rounded'></div>
-                ))}
+      {
+        error ? (
+          <div className='text-red-500 p-4 text-center'>{error}</div>
+        ) : loading ? (
+          <div className='p-8 flex justify-center items-center'>
+            <div className='animate-pulse flex space-x-4'>
+              <div className='flex-1 space-y-4 py-1'>
+                <div className='h-4 bg-gray-200 rounded w-3/4'></div>
+                <div className='space-y-2'>
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className='h-4 bg-gray-200 rounded'></div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <div className='overflow-x-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
-              <thead className='bg-gray-50'>
-                <tr>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    S.No.
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Phone
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Name
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Last Interaction
-                  </th>
-
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='bg-white divide-y divide-gray-200'>
-                {currentUsers.length > 0 ? (
-                  currentUsers.map((user, index) => {
-                    return (
-                      <tr key={user._id} className='hover:bg-gray-50'>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                          {indexOfFirstItem + index + 1}
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm font-medium text-gray-900'>
-                            {user.phone
-                              ? `+${user.phone.slice(0, 2)} ${user.phone.slice(
-                                2
-                              )}`
-                              : 'N/A'}
-                          </div>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                          {user.name || 'N/A'}
-                        </td>
-                        <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
-                          {user.lastInteraction
-                            ? new Date(user.lastInteraction).toLocaleString()
-                            : ''}
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                          <div className='flex gap-4'>
-                            <button
-                              onClick={() => openEditForm(user)}
-                              className='text-indigo-600 hover:text-indigo-900'
-                            >
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user._id)}
-                              className='text-red-600 hover:text-red-900'
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
+        ) : (
+          <>
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200'>
+                <thead className='bg-gray-50'>
                   <tr>
-                    <td
-                      colSpan={6}
-                      className='px-6 py-4 text-center text-sm text-gray-500'
-                    >
-                      No users found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      S.No.
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Phone
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Name
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Last Interaction
+                    </th>
 
-          {/* Pagination */}
-          {filteredUsers.length > itemsPerPage && (
-            <div className='px-6 py-4 border-t border-gray-200 flex items-center justify-between'>
-              <div className='text-sm text-gray-700'>
-                Showing{' '}
-                <span className='font-medium'>{indexOfFirstItem + 1}</span> to{' '}
-                <span className='font-medium'>
-                  {Math.min(indexOfLastItem, filteredUsers.length)}
-                </span>{' '}
-                of <span className='font-medium'>{filteredUsers.length}</span>{' '}
-                users
-              </div>
-              <div className='flex space-x-2'>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                >
-                  <FiChevronLeft />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage(prev => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                >
-                  <FiChevronRight />
-                </button>
-              </div>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className='bg-white divide-y divide-gray-200'>
+                  {currentUsers.length > 0 ? (
+                    currentUsers.map((user, index) => {
+                      return (
+                        <tr key={user._id} className='hover:bg-gray-50'>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            {indexOfFirstItem + index + 1}
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap'>
+                            <div className='text-sm font-medium text-gray-900'>
+                              {user.phone
+                                ? `+${user.phone.slice(0, 2)} ${user.phone.slice(
+                                  2
+                                )}`
+                                : 'N/A'}
+                            </div>
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            {user.name || 'N/A'}
+                          </td>
+                          <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
+                            {user.lastInteraction
+                              ? new Date(user.lastInteraction).toLocaleString()
+                              : ''}
+                          </td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                            <div className='flex gap-4'>
+                              <button
+                                onClick={() => openEditForm(user)}
+                                className='text-indigo-600 hover:text-indigo-900'
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user._id)}
+                                className='text-red-600 hover:text-red-900'
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className='px-6 py-4 text-center text-sm text-gray-500'
+                      >
+                        No users found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
-        </>
-      )}
-    </div>
+
+            {/* Pagination */}
+            {filteredUsers.length > itemsPerPage && (
+              <div className='px-6 py-4 border-t border-gray-200 flex items-center justify-between'>
+                <div className='text-sm text-gray-700'>
+                  Showing{' '}
+                  <span className='font-medium'>{indexOfFirstItem + 1}</span> to{' '}
+                  <span className='font-medium'>
+                    {Math.min(indexOfLastItem, filteredUsers.length)}
+                  </span>{' '}
+                  of <span className='font-medium'>{filteredUsers.length}</span>{' '}
+                  users
+                </div>
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                  >
+                    <FiChevronLeft />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCurrentPage(prev => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                    className='px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                  >
+                    <FiChevronRight />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      }
+    </div >
   )
 }

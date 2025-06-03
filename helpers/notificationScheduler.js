@@ -1,13 +1,12 @@
 const nodeCron = require('node-cron');
 const Event = require('../models/Event');
-const { formatEventList } = require('./eventQuery'); // reuse your formatter
 
 // Schedule daily 6 AM notification with today's events
 const { sendWhatsAppMessage } = require('./whatsappSender');
 const { generateEventPDF } = require('./generatePdf');
 
 function scheduleDailyNotifications() {
-  nodeCron.schedule('32 8 * * *', async () => {
+  nodeCron.schedule('20 7 * * *', async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -76,6 +75,14 @@ async function scheduleEventReminders() {
       scheduleEventReminders(); // Recursively schedule next reminder
     }, delay);
   }
+}
+// Format events list (example)
+function formatEventList(events) {
+  return events.map(event =>
+    `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थान: ${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
+      : ""
+    }\n link: ${event.mediaUrls}\n \n`
+  ).join('\n');
 }
 
 module.exports = {

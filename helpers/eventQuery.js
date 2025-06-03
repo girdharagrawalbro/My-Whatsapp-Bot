@@ -141,14 +141,6 @@ async function searchEventsByKeyword(query) {
   };
 }
 
-// // Format events list (example)
-// function formatEventList(events) {
-//   return events.map(event =>
-//     `# ${event.title} \n ( ${event.date.toLocaleDateString('en-IN')} - ${event.time} )\n \nस्थान: ${event.address} \n आयोजक: ${event.organizer}\n संपर्क: ${event.contactPhone ? event.contactPhone
-//       : ""
-//     }\n link: ${event.mediaUrls}\n \n`
-//   ).join('\n');
-// }
 
 module.exports = {
   queryEvents,

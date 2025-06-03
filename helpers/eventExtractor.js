@@ -47,9 +47,9 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
       mimeType = getMimeType(mediaType);
     }
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Processing timeout after 2 minutes')), 120000)
-    );
+    // const timeoutPromise = new Promise((_, reject) =>
+    //   setTimeout(() => reject(new Error('Processing timeout after 2 minutes')), 120000)
+    // );
 
     const prompt = `इस ${mediaType} से कार्यक्रम का विवरण निकालें। केवल एक मुख्य कार्यक्रम का विवरण इस JSON प्रारूप में दें:
 {
@@ -72,7 +72,10 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
    - नामकरण: "नाम का नामकरण"
    - सेवानिवृत्ति: "नाम की सेवानिवृत्ति"
 4. एकाधिक कार्यक्रम होने पर: केवल अंतिम (latest) कार्यक्रम का विवरण दें।
-5. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं।`;
+5. तारीख में साल नी दिए होने पर 2025 ले |
+6. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं।
+7. यदि विवाह/सगाई/आशीर्वाद/सुरुचि भोज कार्ड है, तो केवल "सुरुचि भोज", "आशीर्वाद समारोह", या "Reception" जैसे कार्यक्रमों से ही तिथि और समय लें — "पाणिग्रहण" या अन्य रस्मों की तिथि और समय न लें।`;
+
 
     const result = await Promise.race([
       model.generateContent([
@@ -84,7 +87,7 @@ async function extractEventDetailsFromMedia(filePath, mediaType) {
         },
         prompt
       ]),
-      timeoutPromise
+      
     ]);
 
     const response = await result.response;
@@ -232,7 +235,8 @@ module.exports = {
    - नामकरण: "नाम का नामकरण"
    - सेवानिवृत्ति: "नाम की सेवानिवृत्ति"
 4. एकाधिक कार्यक्रम होने पर: केवल अंतिम (latest) कार्यक्रम का विवरण दें।
-5. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं।`;
+5. यदि कोई स्पष्ट कार्यक्रम नहीं मिले: खाली ऑब्जेक्ट लौटाएं।
+6. यदि विवाह/सगाई/आशीर्वाद/सुरुचि भोज कार्ड है, तो केवल "सुरुचि भोज", "आशीर्वाद समारोह", या "Reception" जैसे कार्यक्रमों से ही तिथि और समय लें — "पाणिग्रहण" या अन्य रस्मों की तिथि और समय न लें।`;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;

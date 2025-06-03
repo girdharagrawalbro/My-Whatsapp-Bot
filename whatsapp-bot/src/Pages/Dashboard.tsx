@@ -8,7 +8,7 @@ interface Event {
   date: string
   time: string
   address: string
-  status: string
+  isAttended: boolean
 }
 
 interface User {
@@ -16,7 +16,7 @@ interface User {
   name?: string
   lastInteraction: string
 }
-
+``
 export default function Dashboard() {
   interface StatItem {
     title: string
@@ -176,7 +176,7 @@ export default function Dashboard() {
                       Location
                     </th>
                     <th className='px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Status
+                      Attended
                     </th>
                   </tr>
                 </thead>
@@ -192,14 +192,15 @@ export default function Dashboard() {
                       <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
                         <div className='text-sm text-gray-500'>{event.address || 'Not specified'}</div>
                       </td>
-                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap'>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${event.status === 'confirmed'
-                          ? 'bg-green-100 text-green-800'
-                          : event.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
+                      <td className='px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-center'>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                        ${event.isAttended
+                            ? 'bg-green-100 text-green-800' :
+                            'bg-yellow-100 text-yellow-800'
                           }`}>
-                          {event.status}
+                          {
+                            event.isAttended ? "Yes" : "No"
+                          }
                         </span>
                       </td>
                     </tr>
@@ -262,7 +263,7 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   )
 }

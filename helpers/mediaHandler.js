@@ -53,7 +53,6 @@ async function uploadToImgBB(filePath) {
       params: { key: IMGBB_API_KEY },
       headers: form.getHeaders()
     });
-
     return response.data.data.url;
   } catch (error) {
     console.error('ImageBB upload failed:', error);

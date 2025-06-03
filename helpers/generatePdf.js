@@ -4,7 +4,6 @@ const cloudinary = require('cloudinary').v2;
 const axios = require('axios');
 require('dotenv').config();
 
-const sitelink = "https://whatsapp-bot-eight-lime.vercel.app/manageevents";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -52,13 +51,13 @@ async function generateEventPDF(events, today = true) {
     const eventRows = sortedEvents.map(e => `
       <tr>
         ${today
-        ? `<td style="text-align:center;">${e.time}</td>`
-        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} - ${e.time}</td>`}
-        <td>${e.title}</td>
+        ? `<td style="text-align:center;">${e.time ? e.time : ''}</td>`
+        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} ${e.time ? e.time : ''}</td>`}
+        <td style="text-align:center;">${e.title}</td>
         <td>${e.description}</td>
         <td>${e.organizer}</td>
+        <td style="text-align:center;">${e.contactPhone ? e.contactPhone : 'उपलब्ध नहीं'}</td>
         <td>${e.address}</td>
-        <td style="text-align:center;">${e.contactPhone}</td>
         <td style="text-align:center;">${e.mediaUrls ? `<a href="${e.mediaUrls}" target="_blank">कार्ड</a>` : ''}</td>
       </tr>
     `).join('');
@@ -118,18 +117,18 @@ async function generateEventPDF(events, today = true) {
 
         .footer {
             width: 100%;
-            margin-top: 10px;
             text-align: center;
-            padding: 0 5px;
+            padding-top: 5px;
+            margin-top: 8px;
         }
 
         .footer-link {
-            border: 1px solid black;
-            color: black;
+              background: #080227;
+            color: white;
             padding: 5px 15px;
             text-decoration: none;
             border-radius: 4px;
-        }
+            }
 
         .footer-contact {
             margin-top: 5px;
@@ -188,18 +187,18 @@ async function generateEventPDF(events, today = true) {
   <div class="page-content">
     <table>
       <thead>
-        <tr>
-          ${today
-        ? '<th width="10%">समय</th>'
-        : '<th width="10%">तारीख - समय</th>'
-      }
-          <th width="15%">कार्यक्रम</th>
-          <th width="20%">विवरण</th>
-          <th width="15%">आयोजक</th>
-          <th width="15%">स्थान</th>
-          <th width="10%">संपर्क</th>
-          <th width="5%">कार्ड</th>
-        </tr>
+       <tr>
+  ${today
+    ? '<th width="8%">समय</th>'
+    : '<th width="12%">तारीख समय</th>'}
+  <th width="12%">कार्यक्रम</th>
+  <th width="22%">विवरण</th>
+  <th width="20%">आयोजक / द्वारा</th>
+  <th width="14%">मोबाइल</th>
+  <th width="19%">स्थान</th>
+  <th width="5%">कार्ड</th>
+</tr>
+
       </thead>
       <tbody>
         ${eventRows}
@@ -207,9 +206,12 @@ async function generateEventPDF(events, today = true) {
     </table>
   </div>
   <div class="footer">
-    <div>
-      <a href="${sitelink}" class="footer-link" target="_blank">सभी कार्यक्रम देखें</a>
-    </div>
+        <hr>
+   <a href="https://whatsapp-bot-eight-lime.vercel.app/manageevents" target="_blank">
+            <button class="footer-link">
+                सभी कार्यक्रम देखें
+            </button>
+        </a>
     <div class="footer-contact">
       संपर्क: +91-XXXXXXXXXX | ईमेल: amarbansal@example.com
     </div>
@@ -221,8 +223,12 @@ async function generateEventPDF(events, today = true) {
  </html>
               `;
 
-    const pdfPath = `${today ? `कार्यक्रम सूची - ${todayDate}` : 'कार्यक्रम सूची'}.pdf`;
-
+    const pdfPath = `${today ? `Programs of  - ${new Date().toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    })}` : 'Program List'}.pdf`;
     const browser = await chromium.launch();
     const context = await browser.newContext();
     const page = await context.newPage();

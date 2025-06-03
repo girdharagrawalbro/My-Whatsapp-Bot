@@ -14,6 +14,7 @@ const EventSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   sourcePhone: String,
   status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'confirmed' },
+  isAttended: { type: Boolean, default: false },
   reminderSent: { type: Boolean, default: false },
   reminderTime: { type: Number, default: 24 },
   eventIndex: { type: Number, unique: true }

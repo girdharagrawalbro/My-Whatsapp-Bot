@@ -16,7 +16,7 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
 
-    const user = new User({ phone, name, lastInteraction: new Date() });
+    const user = new User({ phone, name, lastInteraction: new Date(), type });
     await user.save();
     res.status(201).json(user);
   } catch (err) {

@@ -51,7 +51,12 @@ exports.handleWebhook = async (req, res) => {
           }
         }
 
-        // twiml.message(`✅ ${req.body.NumMedia}कार्यक्रम सफलतापूर्वक जोड़े गए !`);
+        // twiml.message(`✅ ${req.body.NumMedia} कार्यक्रम सफलतापूर्वक जोड़े गए !`);
+        sendWhatsAppMessage(adminPhone, "", null,
+          {
+            templateSid: 'HXbe93f8fd9e544d85a0fbe12186c5c6f5', // Your approved template SID
+          }
+        )
       } else if (text.trim()) {
         // Check if text contains event details
         const eventDetails = await extractEventDetailsFromText(text);
@@ -60,7 +65,11 @@ exports.handleWebhook = async (req, res) => {
             const index = await getNextEventIndex();
             await saveEvent({ eventData, from, index });
           }
-          twiml.message(`✅ ${eventDetails.length} कार्यक्रम सफलतापूर्वक जोड़े गए !`);
+          sendWhatsAppMessage(adminPhone, "", null,
+            {
+              templateSid: 'HXbe93f8fd9e544d85a0fbe12186c5c6f5', // Your approved template SID
+            }
+          )
         } else {
           // Fall back to query if no events found in text
           const result = await queryEvents(text, from, isAdmin, req.session?.followUpContext);
@@ -99,7 +108,7 @@ exports.handleWebhook = async (req, res) => {
 
   } catch (err) {
     console.error('Webhook Error:', err);
-    twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
+    // twiml.message('⚠️ एक त्रुटि हुई। कृपया पुनः प्रयास करें।');
   }
 
   res.type('text/xml').send(twiml.toString());
