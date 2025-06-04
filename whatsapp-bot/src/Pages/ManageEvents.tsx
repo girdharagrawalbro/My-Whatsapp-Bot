@@ -621,6 +621,9 @@ export default function ManageEvents() {
                     Organizer
                   </th>
                   <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Contact Phone
+                  </th>
+                  <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Address
                   </th>
                   <th className='px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
@@ -680,6 +683,9 @@ export default function ManageEvents() {
                             </div>
                           </div>
                         )}
+
+                      </td>
+                      <td className="px-2 py-4 whitespace-nowrap relative group">
 
                         {event.contactPhone ? (
                           <div className="flex flex-col truncate max-w-[8rem]">

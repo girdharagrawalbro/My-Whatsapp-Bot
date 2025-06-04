@@ -402,6 +402,9 @@ export default function ManageUsers() {
                       Name
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Type
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Last Interaction
                     </th>
 
@@ -430,6 +433,10 @@ export default function ManageUsers() {
                           <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                             {user.name || 'N/A'}
                           </td>
+                                                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                            {user.type || 'N/A'}
+                          </td>
+
                           <td className='px-6 py-4 text-sm text-gray-500 max-w-xs truncate'>
                             {user.lastInteraction
                               ? new Date(user.lastInteraction).toLocaleString()
