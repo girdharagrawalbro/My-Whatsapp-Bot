@@ -330,6 +330,11 @@ async function generateEventPDF(events, today = true) {
         <head>  
           <meta charset="utf-8" />
           <style>
+            @font-face {
+              font-family: 'Mangal';
+              src: url('https://fonts.googleapis.com/css2?family=Mangal&display=swap');
+            }
+            
             @page {
               margin: 0;
             }
@@ -340,7 +345,7 @@ async function generateEventPDF(events, today = true) {
               color: #000;
               margin: 0;
             }
-
+              
             .fixed {
               position: fixed;
               top: 0;
@@ -482,13 +487,16 @@ async function generateEventPDF(events, today = true) {
     const options = {
       format: 'A4',
       orientation: 'portrait',
-      border: {
-        top: '0cm',
-        right: '0cm',
-        bottom: '0cm',
-        left: '0cm'
-      },
-      timeout: 60000
+      border: '0cm',
+      timeout: 60000,
+      phantomPath: path.resolve(process.cwd(), 'node_modules/phantomjs-prebuilt/lib/phantom/bin/phantomjs'),
+      childProcessOptions: {
+        env: {
+          ...process.env,
+          FONTCONFIG_PATH: '/etc/fonts', // Important for server environments
+          FONTCONFIG_FILE: '/etc/fonts/fonts.conf'
+        }
+      }
     };
 
     const document = {

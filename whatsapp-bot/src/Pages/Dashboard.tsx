@@ -37,8 +37,8 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const [eventsRes, usersRes] = await Promise.all([
-          fetch('http://localhost:3000/api/events'),
-          fetch('http://localhost:3000/api/users')
+          fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/events'),
+          fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/users')
         ])
 
         const eventsData: Event[] = await eventsRes.json()

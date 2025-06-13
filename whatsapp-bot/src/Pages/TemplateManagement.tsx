@@ -28,7 +28,7 @@ export default function TemplateManagement() {
     const fetchTemplates = async () => {
       try {
         setLoadingTemplates(true)
-        const res = await fetch('http://localhost:3000/api/templates')
+        const res = await fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/templates')
         const data = await res.json()
         setTemplates(data || [])
         setTemplateError(null)
@@ -46,7 +46,7 @@ export default function TemplateManagement() {
   const handleRefreshTemplates = async () => {
     try {
       setLoadingTemplates(true)
-      const res = await fetch('http://localhost:3000/api/templates')
+      const res = await fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/templates')
       const data = await res.json()
       setTemplates(data || [])
       setTemplateError(null)
@@ -63,8 +63,8 @@ export default function TemplateManagement() {
     try {
       const method = editingTemplateId ? 'PUT' : 'POST'
       const url = editingTemplateId
-        ? `http://localhost:3000/api/templates/${editingTemplateId}`
-        : 'http://localhost:3000/api/templates'
+        ? `https://my-whatsapp-bot-sqc6.onrender.com/api/templates/${editingTemplateId}`
+        : 'https://my-whatsapp-bot-sqc6.onrender.com/api/templates'
 
       const res = await fetch(url, {
         method,
@@ -103,7 +103,7 @@ export default function TemplateManagement() {
   const handleDeleteTemplate = async (templateId: string) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/templates/${templateId}`, {
+        const res = await fetch(`https://my-whatsapp-bot-sqc6.onrender.com/api/templates/${templateId}`, {
           method: 'DELETE'
         })
         if (res.ok) {

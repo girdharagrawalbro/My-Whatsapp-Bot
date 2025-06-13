@@ -56,7 +56,7 @@ export default function ManageEvents() {
     const fetchEvents = async () => {
       try {
         setLoading(true)
-        const res = await fetch('http://localhost:3000/api/events')
+        const res = await fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/events')
         const data = await res.json()
         setEvents(data)
         setError(null)
@@ -73,7 +73,7 @@ export default function ManageEvents() {
   const handleRefresh = async () => {
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3000/api/events')
+      const res = await fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/events')
       const data = await res.json()
       setEvents(data)
       setError(null)
@@ -88,7 +88,7 @@ export default function ManageEvents() {
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const res = await fetch('http://localhost:3000/api/events', {
+      const res = await fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -111,7 +111,7 @@ export default function ManageEvents() {
     e.preventDefault()
     if (!currentEvent) return
     try {
-      const res = await fetch(`http://localhost:3000/api/events/${currentEvent._id}`, {
+      const res = await fetch(`https://my-whatsapp-bot-sqc6.onrender.com/api/events/${currentEvent._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -132,7 +132,7 @@ export default function ManageEvents() {
   const handleDeleteEvent = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/events/${id}`, {
+        const res = await fetch(`https://my-whatsapp-bot-sqc6.onrender.com/api/events/${id}`, {
           method: 'DELETE'
         })
         if (res.ok) {
@@ -214,7 +214,7 @@ export default function ManageEvents() {
     }
 
     toast.promise(
-      fetch('http://localhost:3000/api/makePdf', {
+      fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/makePdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
