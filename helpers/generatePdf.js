@@ -498,22 +498,17 @@ async function generateEventPDF(events, today = true) {
         }
       }
     };
-
+ const pdfFileName = `${today ? `Programs - ${new Date().toLocaleDateString('en-IN')}` : 'Program List'}.pdf`;
+    
     const document = {
       html: htmlContent,
       data: {},
-      path: `${today ? `Programs of  - ${new Date().toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-      })}` : 'Program List'}.pdf`,
+      path:pdfFileName,
       type: 'buffer'
     };
 
     const pdfBuffer = await pdf.create(document, options);
-    const pdfPath = document.path;
-    fs.writeFileSync(pdfPath, pdfBuffer);
+    fs.writeFileSync(pdfFileName, pdfBuffer);
 
     const uploadResult = await cloudinary.uploader.upload(pdfPath, {
       resource_type: 'raw',
