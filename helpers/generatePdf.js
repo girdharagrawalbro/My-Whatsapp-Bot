@@ -69,8 +69,8 @@ const fontPath = path.resolve(__dirname, '../assets/fonts/Mangal.ttf');
           <meta charset="utf-8" />
           <style>
       @font-face {
-  font-family: 'Mangal';
-    src: url('file:///${fontPath.replace(/\\/g, '/')}') format('truetype');
+   font-family: 'ArapBK';
+     src: url('file:///${fontPath.replace(/\\/g, '/')}') format('truetype');
 }
 
             
@@ -79,7 +79,7 @@ const fontPath = path.resolve(__dirname, '../assets/fonts/Mangal.ttf');
             }
 
             body {
-  font-family: 'Mangal', 'Arial Unicode MS', sans-serif;
+    font-family: 'ArapBK', sans-serif;
 font-size: 14px;
               color: #000;
               margin: 0;
