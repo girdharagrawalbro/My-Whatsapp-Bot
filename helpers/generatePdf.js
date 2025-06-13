@@ -47,7 +47,7 @@ async function generateEventPDF(events, today = true) {
       const dateB = new Date(`${b.date} ${b.time}`);
       return dateA - dateB;
     });
-const fontPath = path.resolve(__dirname, '../assets/fonts/Mangal.ttf');
+    const fontPath = path.resolve(__dirname, '../assets/fonts/Arap_0001_BK.ttf');
 
     const eventRows = sortedEvents.map(e => `
       <tr>
@@ -64,14 +64,14 @@ const fontPath = path.resolve(__dirname, '../assets/fonts/Mangal.ttf');
     `).join('');
 
     const htmlContent = `
-      <html>
+      <html lang="hi">
         <head>  
           <meta charset="utf-8" />
           <style>
       @font-face {
    font-family: 'ArapBK';
-     src: url('file:///${fontPath.replace(/\\/g, '/')}') format('truetype');
-}
+       src: url("file:///${fontPath.replace(/\\/g, '/')}") format("truetype");
+     }
 
             
             @page {
@@ -237,12 +237,12 @@ font-size: 14px;
         }
       }
     };
- const pdfFileName = `${today ? `Programs - ${new Date().toLocaleDateString('en-IN')}` : 'Program List'}.pdf`;
-    
+    const pdfFileName = `${today ? `Programs - ${new Date().toLocaleDateString('en-IN')}` : 'Program List'}.pdf`;
+
     const document = {
       html: htmlContent,
       data: {},
-      path:pdfFileName,
+      path: pdfFileName,
       type: 'buffer'
     };
 

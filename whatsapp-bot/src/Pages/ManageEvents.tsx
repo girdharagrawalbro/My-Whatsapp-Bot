@@ -214,7 +214,7 @@ export default function ManageEvents() {
     }
 
     toast.promise(
-      fetch('https://my-whatsapp-bot-sqc6.onrender.com/api/makePdf', {
+      fetch('http://localhost:3000/api/makePdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
