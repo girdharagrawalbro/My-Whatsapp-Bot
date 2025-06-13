@@ -331,16 +331,17 @@ async function generateEventPDF(events, today = true) {
           <meta charset="utf-8" />
           <style>
             @font-face {
-              font-family: 'Mangal';
-              src: url('https://fonts.googleapis.com/css2?family=Mangal&display=swap');
-            }
+  font-family: 'Mangal';
+  src: url('file:///absolute/path/to/Mangal.ttf') format('truetype');
+}
+
             
             @page {
               margin: 0;
             }
 
             body {
-              font-family: 'Mangal', 'Arial Unicode MS', sans-serif;
+              font-family: 'Arial Unicode MS', 'Nirmala UI', sans-serif;
               font-size: 14px;
               color: #000;
               margin: 0;
@@ -510,7 +511,7 @@ async function generateEventPDF(events, today = true) {
     const pdfBuffer = await pdf.create(document, options);
     fs.writeFileSync(pdfFileName, pdfBuffer);
 
-    const uploadResult = await cloudinary.uploader.upload(pdfPath, {
+    const uploadResult = await cloudinary.uploader.upload(pdfFileName, {
       resource_type: 'raw',
       folder: 'daily-event-pdfs',
       use_filename: true,
@@ -518,7 +519,7 @@ async function generateEventPDF(events, today = true) {
       access_mode: 'public',
     });
 
-    fs.unlinkSync(pdfPath);
+    fs.unlinkSync(pdfFileName);
     const longUrl = uploadResult.secure_url;
     return { longUrl };
   } catch (err) {
