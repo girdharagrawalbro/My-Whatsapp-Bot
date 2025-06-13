@@ -48,7 +48,7 @@ export default function ScheduledMessages() {
       try {
         setLoading(true)
         const res = await fetch(
-          `https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages`
+          `http://localhost:3000/api/scheduled-messages`
         )
         const data = await res.json()
         setScheduledMessages(data)
@@ -68,7 +68,7 @@ export default function ScheduledMessages() {
     try {
       setLoading(true)
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages'
+        'http://localhost:3000/api/scheduled-messages'
       )
       const data = await res.json()
       setScheduledMessages(data)
@@ -101,7 +101,7 @@ export default function ScheduledMessages() {
     try {
       setLoading(true)
       const res = await fetch(
-        'https://my-whatsapp-bot-6a9u.onrender.com/api/scheduled-messages/visibility',
+        'http://localhost:3000/api/scheduled-messages/visibility',
         {
           method: 'POST',
           headers: {

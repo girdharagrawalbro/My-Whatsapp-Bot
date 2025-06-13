@@ -115,7 +115,7 @@ export default function ManageUsers() {
 
     try {
       const res = await fetch(
-        `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${currentUser._id}`,
+        `http://localhost:3000/api/users/${currentUser._id}`,
         {
           method: 'PUT',
           headers: {
@@ -144,7 +144,7 @@ export default function ManageUsers() {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         const res = await fetch(
-          `https://my-whatsapp-bot-6a9u.onrender.com/api/users/${id}`,
+          `http://localhost:3000/api/users/${id}`,
           {
             method: 'DELETE'
           }
@@ -433,7 +433,7 @@ export default function ManageUsers() {
                           <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                             {user.name || 'N/A'}
                           </td>
-                                                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
                             {user.type || 'N/A'}
                           </td>
 

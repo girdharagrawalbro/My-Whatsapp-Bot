@@ -1,8 +1,273 @@
-const axios = require('axios');
+// const fs = require('fs');
+// const { chromium } = require('playwright');  // 👈 Replacing puppeteer
+// const cloudinary = require('cloudinary').v2;
+// const axios = require('axios');
+// require('dotenv').config();
+
+
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+//   api_key: process.env.CLOUDINARY_API_KEY,
+//   api_secret: process.env.CLOUDINARY_API_SECRET,
+// });
+
+// function isValidUrl(string) {
+//   try {
+//     new URL(string);
+//     return true;
+//   } catch (_) {
+//     return false;
+//   }
+// }
+
+// async function shortenUrl(url) {
+//   try {
+//     if (!isValidUrl(url)) return url;
+//     const encodedUrl = encodeURIComponent(url);
+//     const tinyUrl = `https://tinyurl.com/api-create.php?url=${encodedUrl}`;
+//     const response = await axios.get(tinyUrl, { headers: { 'Accept': 'text/plain' } });
+//     return isValidUrl(response.data) ? response.data : url;
+//   } catch (err) {
+//     console.error('URL shortening failed:', err.message);
+//     return url;
+//   }
+// }
+
+// async function generateEventPDF(events, today = true) {
+//   try {
+//     const todayDate = new Date().toLocaleDateString('hi-IN', {
+//       year: 'numeric',
+//       month: 'long',
+//       day: 'numeric',
+//       weekday: 'long'
+//     });
+
+//     const sortedEvents = [...events].sort((a, b) => {
+//       const dateA = new Date(`${a.date} ${a.time}`);
+//       const dateB = new Date(`${b.date} ${b.time}`);
+//       return dateA - dateB;
+//     });
+
+//     const eventRows = sortedEvents.map(e => `
+//       <tr>
+//         ${today
+//         ? `<td style="text-align:center;">${e.time ? e.time : ''}</td>`
+//         : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} ${e.time ? e.time : ''}</td>`}
+//         <td style="text-align:center;">${e.title}</td>
+//         <td>${e.description}</td>
+//         <td>${e.organizer}</td>
+//         <td style="text-align:center;">${e.contactPhone ? e.contactPhone : 'उपलब्ध नहीं'}</td>
+//         <td>${e.address}</td>
+//         <td style="text-align:center;">${e.mediaUrls ? `<a href="${e.mediaUrls}" target="_blank">कार्ड</a>` : ''}</td>
+//       </tr>
+//     `).join('');
+
+//     const htmlContent = `
+//                 <html>
+//                   <head>  
+//                     <meta charset="utf-8" />
+//                  <style>
+//         @page {
+//             margin: 0;
+//         }
+
+//         body {
+//             font-family: 'Mangal', 'Arial Unicode MS', sans-serif;
+//             font-size: 14px;
+//             color: #000;
+//             margin: 0;
+//         }
+
+//         .fixed {
+//             position: fixed;
+//             top: 0;
+//             left: 0;
+//             right: 0;
+//         }
+
+//         .header {
+//             text-align: center;
+//             font-size: 14px;
+//             padding: 5px 10px;
+//         }
+
+//         .header-main {
+//             font-weight: bold;
+//             font-size: 22px;
+//             color: #1a3e72;
+//             margin-bottom: 5px;
+//             text-transform: uppercase;
+//         }
+
+//         .header-sub {
+//             font-size: 18px;
+//             color: #000;
+//         }
+
+//         .header-address {
+//             font-size: 14px;
+//             color: #000;
+//         }
+
+//         .date-section {
+//             font-size: 16px;
+//             font-weight: bold;
+//             color: #000;
+//         }
+
+//         .footer {
+//             width: 100%;
+//             text-align: center;
+//             padding-top: 5px;
+//             margin-top: 8px;
+//         }
+
+//         .footer-link {
+//               background: #080227;
+//             color: white;
+//             padding: 5px 15px;
+//             text-decoration: none;
+//             border-radius: 4px;
+//             }
+
+//         .footer-contact {
+//             margin-top: 5px;
+//             font-weight: bold;
+//         }
+
+
+
+//         table {
+//             width: 99%;
+//             margin: 0 auto;
+//             border-collapse: collapse;
+//         }
+
+//         thead {
+//             display: table-header-group;
+//         }
+
+//         tfoot {
+//             display: table-footer-group;
+//         }
+
+//         tr {
+//             page-break-inside: avoid;
+//         }
+
+//         th,
+//         td {
+//             border: 1px solid #ddd;
+//             padding: 5px;
+//             font-size: 14px;
+//             vertical-align: top;
+//         }
+
+//         td {
+//             font-size: 13px;
+//         }
+//     </style>
+
+
+//     </head>
+//                <body>
+//   <div class="header">
+//     <div class="header-main">माननीय श्री अमर बंसल जी</div>
+//     <div class="header-sub">पार्षद, समता कॉलोनी रायपुर, छत्तीसगढ़</div>
+//     <div class="header-address">वार्ड क्रमांक: [वार्ड नंबर], जोन: [जोन नंबर]</div>
+//     <hr>
+//     <div class="date-section">
+//       ${today ? `कार्यक्रम सूची - ${todayDate}` : 'कार्यक्रम सूची'}
+//     </div>
+//     <hr>
+//   </div>
+
+
+
+//   <div class="page-content">
+//     <table>
+//       <thead>
+//        <tr>
+//   ${today
+//         ? '<th width="8%">समय</th>'
+//         : '<th width="12%">तारीख समय</th>'}
+//   <th width="12%">कार्यक्रम</th>
+//   <th width="22%">विवरण</th>
+//   <th width="20%">आयोजक / द्वारा</th>
+//   <th width="14%">मोबाइल</th>
+//   <th width="19%">स्थान</th>
+//   <th width="5%">कार्ड</th>
+// </tr>
+
+//       </thead>
+//       <tbody>
+//         ${eventRows}
+//       </tbody>
+//     </table>
+//   </div>
+//   <div class="footer">
+//         <hr>
+//    <a href="https://whatsapp-bot-eight-lime.vercel.app/manageevents" target="_blank">
+//             <button class="footer-link">
+//                 सभी कार्यक्रम देखें
+//             </button>
+//         </a>
+//     <div class="footer-contact">
+//       संपर्क: +91-XXXXXXXXXX | ईमेल: amarbansal@example.com
+//     </div>
+//     <div style="margin-top: 3px; font-size: 12px;">
+//       यह एक स्वचालित रूप से जनरेट की गई सूची है, कृपया किसी भी अंतिम समय में परिवर्तन के लिए संपर्क करें
+//     </div>
+//   </div>
+// </body>
+//  </html>
+//               `;
+
+//     const pdfPath = `${today ? `Programs of  - ${new Date().toLocaleDateString('en-IN', {
+//       year: 'numeric',
+//       month: 'long',
+//       day: 'numeric',
+//       weekday: 'long'
+//     })}` : 'Program List'}.pdf`;
+//     const browser = await chromium.launch();
+//     const context = await browser.newContext();
+//     const page = await context.newPage();
+//     await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+
+//     await page.pdf({
+//       path: pdfPath,
+//       format: 'A4',
+//       printBackground: true,
+//       margin: { top: '0cm', bottom: '0cm', left: '0cm', right: '0cm' }
+//     });
+
+//     await browser.close();
+
+//     const uploadResult = await cloudinary.uploader.upload(pdfPath, {
+//       resource_type: 'raw',
+//       folder: 'daily-event-pdfs',
+//       use_filename: true,
+//       unique_filename: false,
+//       access_mode: 'public',
+//     });
+
+//     fs.unlinkSync(pdfPath);
+//     const longUrl = uploadResult.secure_url;
+//     return { longUrl };
+//   } catch (err) {
+//     console.error('PDF generation failed:', err.message);
+//     throw err;
+//   }
+// }
+
+// module.exports = { generateEventPDF };  
+
+const fs = require('fs');
+const pdf = require('pdf-creator-node');
 const cloudinary = require('cloudinary').v2;
+const axios = require('axios');
 require('dotenv').config();
 
-// Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -49,12 +314,12 @@ async function generateEventPDF(events, today = true) {
     const eventRows = sortedEvents.map(e => `
       <tr>
         ${today
-        ? `<td style="text-align:center;">${e.time || ''}</td>`
-        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} ${e.time || ''}</td>`}
+        ? `<td style="text-align:center;">${e.time ? e.time : ''}</td>`
+        : `<td style="text-align:center;">${new Date(e.date).toLocaleDateString('hi-IN')} ${e.time ? e.time : ''}</td>`}
         <td style="text-align:center;">${e.title}</td>
         <td>${e.description}</td>
         <td>${e.organizer}</td>
-        <td style="text-align:center;">${e.contactPhone || 'उपलब्ध नहीं'}</td>
+        <td style="text-align:center;">${e.contactPhone ? e.contactPhone : 'उपलब्ध नहीं'}</td>
         <td>${e.address}</td>
         <td style="text-align:center;">${e.mediaUrls ? `<a href="${e.mediaUrls}" target="_blank">कार्ड</a>` : ''}</td>
       </tr>
@@ -62,41 +327,64 @@ async function generateEventPDF(events, today = true) {
 
     const htmlContent = `
       <html>
-        <head>
+        <head>  
           <meta charset="utf-8" />
           <style>
-            @page { margin: 0; }
+            @page {
+              margin: 0;
+            }
+
             body {
               font-family: 'Mangal', 'Arial Unicode MS', sans-serif;
               font-size: 14px;
-              margin: 0;
               color: #000;
+              margin: 0;
             }
+
+            .fixed {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+            }
+
             .header {
               text-align: center;
-              padding: 10px;
+              font-size: 14px;
+              padding: 5px 10px;
             }
+
             .header-main {
-              font-size: 22px;
               font-weight: bold;
+              font-size: 22px;
               color: #1a3e72;
+              margin-bottom: 5px;
+              text-transform: uppercase;
             }
+
             .header-sub {
               font-size: 18px;
+              color: #000;
             }
+
             .header-address {
               font-size: 14px;
+              color: #000;
             }
+
             .date-section {
               font-size: 16px;
               font-weight: bold;
-              margin-top: 5px;
+              color: #000;
             }
+
             .footer {
+              width: 100%;
               text-align: center;
-              margin-top: 20px;
-              font-size: 13px;
+              padding-top: 5px;
+              margin-top: 8px;
             }
+
             .footer-link {
               background: #080227;
               color: white;
@@ -104,16 +392,40 @@ async function generateEventPDF(events, today = true) {
               text-decoration: none;
               border-radius: 4px;
             }
+
+            .footer-contact {
+              margin-top: 5px;
+              font-weight: bold;
+            }
+
             table {
-              width: 98%;
+              width: 99%;
               margin: 0 auto;
               border-collapse: collapse;
             }
-            th, td {
+
+            thead {
+              display: table-header-group;
+            }
+
+            tfoot {
+              display: table-footer-group;
+            }
+
+            tr {
+              page-break-inside: avoid;
+            }
+
+            th,
+            td {
               border: 1px solid #ddd;
               padding: 5px;
+              font-size: 14px;
+              vertical-align: top;
+            }
+
+            td {
               font-size: 13px;
-              text-align: left;
             }
           </style>
         </head>
@@ -122,35 +434,44 @@ async function generateEventPDF(events, today = true) {
             <div class="header-main">माननीय श्री अमर बंसल जी</div>
             <div class="header-sub">पार्षद, समता कॉलोनी रायपुर, छत्तीसगढ़</div>
             <div class="header-address">वार्ड क्रमांक: [वार्ड नंबर], जोन: [जोन नंबर]</div>
-            <hr />
+            <hr>
             <div class="date-section">
               ${today ? `कार्यक्रम सूची - ${todayDate}` : 'कार्यक्रम सूची'}
             </div>
-            <hr />
+            <hr>
           </div>
-          <table>
-            <thead>
-              <tr>
-                ${today
-                  ? '<th width="8%">समय</th>'
-                  : '<th width="12%">तारीख समय</th>'}
-                <th width="12%">कार्यक्रम</th>
-                <th width="22%">विवरण</th>
-                <th width="20%">आयोजक / द्वारा</th>
-                <th width="14%">मोबाइल</th>
-                <th width="19%">स्थान</th>
-                <th width="5%">कार्ड</th>
-              </tr>
-            </thead>
-            <tbody>${eventRows}</tbody>
-          </table>
+
+          <div class="page-content">
+            <table>
+              <thead>
+                <tr>
+                  ${today
+        ? '<th width="8%">समय</th>'
+        : '<th width="12%">तारीख समय</th>'}
+                  <th width="12%">कार्यक्रम</th>
+                  <th width="22%">विवरण</th>
+                  <th width="20%">आयोजक / द्वारा</th>
+                  <th width="14%">मोबाइल</th>
+                  <th width="19%">स्थान</th>
+                  <th width="5%">कार्ड</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${eventRows}
+              </tbody>
+            </table>
+          </div>
           <div class="footer">
-            <hr />
+            <hr>
             <a href="https://whatsapp-bot-eight-lime.vercel.app/manageevents" target="_blank">
-              <button class="footer-link">सभी कार्यक्रम देखें</button>
+              <button class="footer-link">
+                सभी कार्यक्रम देखें
+              </button>
             </a>
-            <div class="footer-contact">संपर्क: +91-XXXXXXXXXX | ईमेल: amarbansal@example.com</div>
-            <div style="margin-top: 3px;">
+            <div class="footer-contact">
+              संपर्क: +91-XXXXXXXXXX | ईमेल: amarbansal@example.com
+            </div>
+            <div style="margin-top: 3px; font-size: 12px;">
               यह एक स्वचालित रूप से जनरेट की गई सूची है, कृपया किसी भी अंतिम समय में परिवर्तन के लिए संपर्क करें
             </div>
           </div>
@@ -158,38 +479,45 @@ async function generateEventPDF(events, today = true) {
       </html>
     `;
 
-    // Call html2pdf.app to generate PDF
-    const pdfResponse = await axios.post(
-      'https://api.html2pdf.app/v1/generate',
-      {
-        html: htmlContent,
-        apiKey: process.env.HTML2PDF_API_KEY,
+    const options = {
+      format: 'A4',
+      orientation: 'portrait',
+      border: {
+        top: '0cm',
+        right: '0cm',
+        bottom: '0cm',
+        left: '0cm'
       },
-      { responseType: 'arraybuffer' }
-    );
+      timeout: 60000
+    };
 
-    const buffer = pdfResponse.data;
+    const document = {
+      html: htmlContent,
+      data: {},
+      path: `${today ? `Programs of  - ${new Date().toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      })}` : 'Program List'}.pdf`,
+      type: 'buffer'
+    };
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'daily-event-pdfs',
-          public_id: `events-${Date.now()}`,
-          overwrite: true,
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      const readable = require('stream').Readable.from(buffer);
-      readable.pipe(stream);
+    const pdfBuffer = await pdf.create(document, options);
+    const pdfPath = document.path;
+    fs.writeFileSync(pdfPath, pdfBuffer);
+
+    const uploadResult = await cloudinary.uploader.upload(pdfPath, {
+      resource_type: 'raw',
+      folder: 'daily-event-pdfs',
+      use_filename: true,
+      unique_filename: false,
+      access_mode: 'public',
     });
 
+    fs.unlinkSync(pdfPath);
     const longUrl = uploadResult.secure_url;
-    const shortUrl = await shortenUrl(longUrl);
-    return { longUrl, shortUrl };
+    return { longUrl };
   } catch (err) {
     console.error('PDF generation failed:', err.message);
     throw err;
