@@ -47,6 +47,7 @@ async function generateEventPDF(events, today = true) {
       const dateB = new Date(`${b.date} ${b.time}`);
       return dateA - dateB;
     });
+const fontPath = path.resolve(__dirname, '../assets/fonts/Mangal.ttf');
 
     const eventRows = sortedEvents.map(e => `
       <tr>
@@ -67,9 +68,9 @@ async function generateEventPDF(events, today = true) {
         <head>  
           <meta charset="utf-8" />
           <style>
-            @font-face {
+      @font-face {
   font-family: 'Mangal';
-  src: url('file:///absolute/path/to/Mangal.ttf') format('truetype');
+    src: url('file:///${fontPath.replace(/\\/g, '/')}') format('truetype');
 }
 
             
@@ -78,8 +79,8 @@ async function generateEventPDF(events, today = true) {
             }
 
             body {
-              font-family: 'Arial Unicode MS', 'Nirmala UI', sans-serif;
-              font-size: 14px;
+  font-family: 'Mangal', 'Arial Unicode MS', sans-serif;
+font-size: 14px;
               color: #000;
               margin: 0;
             }
