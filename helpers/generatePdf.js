@@ -47,7 +47,7 @@ async function generateEventPDF(events, today = true) {
       const dateB = new Date(`${b.date} ${b.time}`);
       return dateA - dateB;
     });
-    const fontPath = path.resolve(__dirname, '../assets/fonts/Arap_0001_BK.ttf');
+    const fontPath = path.resolve(__dirname, './fonts/Arap_0001_BK.ttf');
 
     const eventRows = sortedEvents.map(e => `
       <tr>
