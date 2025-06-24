@@ -31,6 +31,8 @@ app.use('/api', messageRoutes);
 app.use('/', webhookRoutes);
 app.use('/api', pdfRoutes);
 
+console.log(fs.existsSync(fontPath)); // should return true on Render
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('\x1b[36m%s\x1b[0m', `📡 Server running on port ${PORT}`);

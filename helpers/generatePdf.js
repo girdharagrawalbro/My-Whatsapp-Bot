@@ -47,7 +47,8 @@ async function generateEventPDF(events, today = true) {
       const dateB = new Date(`${b.date} ${b.time}`);
       return dateA - dateB;
     });
-    const fontPath = path.resolve(__dirname, './fonts/Arap_0001_BK.ttf');
+    const fontPath = path.resolve(__dirname, './fonts/NotoSansDevanagari-Regular.ttf');
+
 
     const eventRows = sortedEvents.map(e => `
       <tr>
@@ -68,10 +69,10 @@ async function generateEventPDF(events, today = true) {
         <head>  
           <meta charset="utf-8" />
           <style>
-      @font-face {
-   font-family: 'ArapBK';
-       src: url("file:///${fontPath.replace(/\\/g, '/')}") format("truetype");
-     }
+          @font-face {
+  font-family: 'NotoDeva';
+  src: url("file:///var/task/fonts/NotoSansDevanagari-Regular.ttf") format("truetype");
+}
 
             
             @page {
@@ -79,7 +80,7 @@ async function generateEventPDF(events, today = true) {
             }
 
             body {
-    font-family: 'ArapBK', sans-serif;
+  font-family: 'NotoDeva', sans-serif;
 font-size: 14px;
               color: #000;
               margin: 0;
