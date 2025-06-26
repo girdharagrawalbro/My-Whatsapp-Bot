@@ -3,6 +3,7 @@ const fs = require('fs');
 const pdf = require('pdf-creator-node');
 const cloudinary = require('cloudinary').v2;
 const axios = require('axios');
+const puppeteer = require('puppeteer');
 require('dotenv').config();
 
 cloudinary.config({
@@ -10,6 +11,12 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Read the base64 font (first 3500 lines for demonstration, should concatenate all for production)
+const fontBase64 = `
+// ... existing code ...
+` +
+  fs.readFileSync(path.resolve(__dirname, '../fonts/NotoSansDevanagari-Regular.ttf.b64'), 'utf8');
 
 function isValidUrl(string) {
   try {
@@ -47,8 +54,6 @@ async function generateEventPDF(events, today = true) {
       const dateB = new Date(`${b.date} ${b.time}`);
       return dateA - dateB;
     });
-    const fontPath = path.resolve(__dirname, './fonts/NotoSansDevanagari-Regular.ttf');
-
 
     const eventRows = sortedEvents.map(e => `
       <tr>
@@ -69,19 +74,21 @@ async function generateEventPDF(events, today = true) {
         <head>  
           <meta charset="utf-8" />
           <style>
-          @font-face {
-  font-family: 'NotoDeva';
-  src: url("file:///var/task/fonts/NotoSansDevanagari-Regular.ttf") format("truetype");
-}
-
+            @font-face {
+              font-family: 'Noto Sans Devanagari';
+              src: url(data:font/truetype;charset=utf-8;base64,${fontBase64.replace(/\s+/g, '')}) format('truetype');
+              font-weight: normal;
+              font-style: normal;
+            }
+            body, * {
+              font-family: 'Noto Sans Devanagari', sans-serif !important;
+            }
             
             @page {
               margin: 0;
             }
 
             body {
-  font-family: 'NotoDeva', sans-serif;
-font-size: 14px;
               color: #000;
               margin: 0;
             }
@@ -267,4 +274,32 @@ font-size: 14px;
   }
 }
 
-module.exports = { generateEventPDF };
+function generatePdf(htmlContent, outputPath) {
+  // Embed the font in the HTML using a data URL
+  const fontFace = `
+    <style>
+      @font-face {
+        font-family: 'Noto Sans Devanagari';
+        src: url(data:font/truetype;charset=utf-8;base64,${fontBase64.replace(/\s+/g, '')}) format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      body, * {
+        font-family: 'Noto Sans Devanagari', sans-serif !important;
+      }
+    </style>
+  `;
+  const htmlWithFont = fontFace + htmlContent;
+
+  return puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: true,
+  }).then(async browser => {
+    const page = await browser.newPage();
+    await page.setContent(htmlWithFont, { waitUntil: 'networkidle0' });
+    await page.pdf({ path: outputPath, format: 'A4' });
+    await browser.close();
+  });
+}
+
+module.exports = { generateEventPDF, generatePdf };
