@@ -7,7 +7,14 @@ const path = require('path');
 const fs = require('fs');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(cors());
+
+const corsOptions = {
+  origin: 'https://whatsapp-bot-eight-lime.vercel.app', // allow only your frontend
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true // if you're using cookies or authorization headers
+};
+
+app.use(cors(corsOptions));
 
 const connectDB = require('./config/db');
 
