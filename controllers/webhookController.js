@@ -8,7 +8,7 @@ const { downloadMediaFile } = require('../helpers/mediaHandler');
 const { getNextEventIndex, saveEvent } = require('../helpers/eventManager');
 const { sendWhatsAppMessage } = require('../helpers/whatsappSender');
 const { queryEvents } = require('../helpers/eventQuery');
-const { generateEventPDF } = require('../helpers/generatePdf');
+const { generatePdf } = require('../helpers/generatePdf');
 
 const adminPhone = process.env.ADMIN_PHONE_NUMBER;
 
@@ -77,7 +77,7 @@ exports.handleWebhook = async (req, res) => {
           if (result.error) {
             twiml.message(result.error);
           } else if (result.events.length > 0) {
-            const { longUrl } = await generateEventPDF(result.events, result.type === 'today' ? true : false);
+            const { longUrl } = await generatePdf(result.events, result.type === 'today' ? true : false);
             console.log(longUrl)
             await sendWhatsAppMessage(adminPhone, result.message, longUrl);
           }

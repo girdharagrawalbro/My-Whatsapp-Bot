@@ -1,4 +1,4 @@
-const { generateEventPDF } = require("../helpers/generatePdf");
+const { generatePdf } = require("../helpers/generatePdf");
 
 const createPdf = async (req, res) => {
     try {
@@ -13,7 +13,7 @@ const createPdf = async (req, res) => {
             isToday = date === todayDate.toISOString().split('T')[0]; // Optional: customize your "today" check
         }
 
-        const { longUrl } = await generateEventPDF(events, isToday);
+        const { longUrl } = await generatePdf(events, isToday);
 
         res.status(200).json({
             link: longUrl
